@@ -25,6 +25,7 @@
         <activity android:name=".GroupActivity" />
         <activity android:name=".JoinGroupActivity" />
         <activity android:name=".CreateGroupActivity" />
+        <activity android:name=".SingleGroupActivity" />
     </application>
 
 </manifest>

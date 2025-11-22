@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -23,7 +24,7 @@ class JoinGroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigation
 
         val groupCodeInput = findViewById<EditText>(R.id.group_code_input)
         val joinGroupButton = findViewById<Button>(R.id.join_group_button)
-        val createGroupInsteadButton = findViewById<Button>(R.id.create_group_instead_button)
+        val createGroupInsteadButton = findViewById<TextView>(R.id.create_group_instead_button)
 
         joinGroupButton.setOnClickListener {
             val groupCode = groupCodeInput.text.toString()
@@ -46,9 +47,11 @@ class JoinGroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigation
             val intent = Intent(this, CreateGroupActivity::class.java)
             intent.putExtra("USER_ID", currentUserId)
             startActivity(intent)
+            finish()
         }
 
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNavigationView.selectedItemId = R.id.navigation_create // Highlight the create icon
         bottomNavigationView.setOnNavigationItemSelectedListener(this)
     }
 

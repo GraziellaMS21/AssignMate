@@ -37,7 +37,7 @@
                     android:id="@+id/group_code_input"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Enter Group Code" />
+                    android.hint="Enter Group Code" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <Button
@@ -49,23 +49,15 @@
                 android:text="Join Group" />
 
             <TextView
-                android:id="@+id/or_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="or"
-                android:layout_below="@id/join_group_button"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="16dp"/>
-
-            <Button
                 android:id="@+id/create_group_instead_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/or_text"
+                android:layout_below="@id/join_group_button"
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="16dp"
-                android:text="Create a New Group"
-                style="?android:attr/borderlessButtonStyle" />
+                android:text="Create a Group Instead"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold" />
 
         </RelativeLayout>
     </ScrollView>

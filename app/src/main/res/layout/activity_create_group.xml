@@ -19,11 +19,11 @@
                 android:id="@+id/title_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="32dp"
                 android:text="Create a Group"
                 android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_centerHorizontal="true"
-                android:layout_marginBottom="32dp"/>
+                android:textStyle="bold" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/group_name_layout"
@@ -53,13 +53,52 @@
                     android:hint="Group Description" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <LinearLayout
+                android:id="@+id/group_code_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/group_description_layout"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/group_code_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Group Code will appear here"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/copy_code_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_copy"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+
             <Button
                 android:id="@+id/create_group_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/group_description_layout"
+                android:layout_below="@id/group_code_layout"
                 android:layout_marginTop="24dp"
                 android:text="Create Group" />
+
+            <TextView
+                android:id="@+id/join_group_instead_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/create_group_button"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="16dp"
+                android:text="Join a Group Instead"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold" />
 
         </RelativeLayout>
     </ScrollView>

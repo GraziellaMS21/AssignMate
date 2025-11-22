@@ -51,7 +51,13 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
     }
 
     private fun setupRecyclerView() {
-        groupAdapter = GroupAdapter(groups)
+        groupAdapter = GroupAdapter(groups) { group ->
+            val intent = Intent(this, SingleGroupActivity::class.java)
+            intent.putExtra("GROUP_NAME", group.name)
+            // You can pass the group ID for future use
+            // intent.putExtra("GROUP_ID", group.id)
+            startActivity(intent)
+        }
         binding.groupsRecyclerView.apply {
             adapter = groupAdapter
             layoutManager = LinearLayoutManager(this@GroupActivity)

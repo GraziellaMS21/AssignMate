@@ -46,7 +46,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db?.execSQL(createGroupsTable)
 
         val createUserGroupsTable = ("CREATE TABLE " + TABLE_USER_GROUPS + "("
-                + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " TEXT," 
+                + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " TEXT,"
                 + "PRIMARY KEY(" + KEY_USER_ID + ", " + KEY_GROUP_ID + "))")
         db?.execSQL(createUserGroupsTable)
 
@@ -118,10 +118,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return count > 0
     }
 
-    fun createGroup(groupName: String, groupDescription: String, leaderId: Int): String {
+    fun createGroup(groupName: String, groupDescription: String, leaderId: Int, groupCode: String): Long {
         val db = this.writableDatabase
         val groupId = UUID.randomUUID().toString()
-        val groupCode = (100000..999999).random().toString()
 
         val values = ContentValues()
         values.put(KEY_GROUP_ID, groupId)
@@ -129,10 +128,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         values.put(KEY_GROUP_DESCRIPTION, groupDescription)
         values.put(KEY_GROUP_LEADER_ID, leaderId)
         values.put(KEY_GROUP_CODE, groupCode)
-        db.insert(TABLE_GROUPS, null, values)
+        val success = db.insert(TABLE_GROUPS, null, values)
 
-        addUserToGroup(leaderId, groupId)
-        return groupCode
+        if (success != -1L) {
+            addUserToGroup(leaderId, groupId)
+        }
+        return success
     }
 
     fun joinGroup(userId: Int, groupCode: String): Boolean {

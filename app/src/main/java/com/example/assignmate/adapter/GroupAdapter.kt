@@ -12,7 +12,10 @@ import com.example.assignmate.model.Group
 import java.text.SimpleDateFormat
 import java.util.*
 
-class GroupAdapter(private val groups: List<Group>) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
+class GroupAdapter(
+    private val groups: List<Group>,
+    private val onItemClicked: (Group) -> Unit
+) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_group_card, parent, false)
@@ -22,6 +25,9 @@ class GroupAdapter(private val groups: List<Group>) : RecyclerView.Adapter<Group
     override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
         val group = groups[position]
         holder.bind(group)
+        holder.itemView.setOnClickListener {
+            onItemClicked(group)
+        }
     }
 
     override fun getItemCount() = groups.size
