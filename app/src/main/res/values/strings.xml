@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">AssignMate</string>
+    <string name="title_home">Home</string>
+    <string name="title_groups">Groups</string>
+    <string name="title_create">Create</string>
+    <string name="title_tasks">Tasks</string>
+    <string name="title_profile">Profile</string>
 </resources>
