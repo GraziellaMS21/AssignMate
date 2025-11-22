@@ -22,6 +22,9 @@
         </activity>
         <activity android:name=".RegisterActivity" />
         <activity android:name=".MainActivity" />
+        <activity android:name=".GroupActivity" />
+        <activity android:name=".JoinGroupActivity" />
+        <activity android:name=".CreateGroupActivity" />
     </application>
 
 </manifest>
