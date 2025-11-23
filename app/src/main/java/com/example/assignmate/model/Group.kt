@@ -1,7 +1,7 @@
 package com.example.assignmate.model
 
 data class Group(
-    val id: String,
+    val id: Long,
     val name: String,
     val description: String,
     val leader: String,

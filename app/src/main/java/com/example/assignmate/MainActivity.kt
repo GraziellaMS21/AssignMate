@@ -19,26 +19,23 @@ class MainActivity : AppCompatActivity() {
         currentUserId = intent.getIntExtra("USER_ID", -1)
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.navigation_home -> {
+            val intent = when (item.itemId) {
+                R.id.action_home -> {
                     // Already on the home screen
-                    true
+                    return@setOnItemSelectedListener true
                 }
-                R.id.navigation_groups -> {
-                    val intent = Intent(this, GroupActivity::class.java)
-                    intent.putExtra("USER_ID", currentUserId)
-                    startActivity(intent)
-                    true
-                }
-                R.id.navigation_create -> {
-                    val intent = Intent(this, JoinGroupActivity::class.java)
-                    intent.putExtra("USER_ID", currentUserId)
-                    startActivity(intent)
-                    true
-                }
-                // TODO: Add navigation for other items
-                else -> false
+                R.id.action_groups -> Intent(this, GroupActivity::class.java)
+                R.id.action_create -> Intent(this, CreateGroupActivity::class.java)
+                // R.id.action_tasks -> Intent(this, TasksActivity::class.java)
+                R.id.action_profile -> Intent(this, ProfileActivity::class.java)
+                else -> null
             }
+            intent?.let {
+                it.putExtra("USER_ID", currentUserId)
+                startActivity(it)
+                // Do not finish MainActivity so user can return
+            }
+            true
         }
     }
 }

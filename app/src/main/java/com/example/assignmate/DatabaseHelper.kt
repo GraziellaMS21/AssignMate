@@ -5,12 +5,11 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.assignmate.model.Group
-import java.util.UUID
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
         private const val DATABASE_NAME = "AssignMate.db"
 
         // User table
@@ -33,6 +32,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val KEY_USER_ID = "user_id"
     }
 
+    override fun onOpen(db: SQLiteDatabase?) {
+        super.onOpen(db)
+        // Clean up invalid data from previous bugs where user_id might have been -1
+        db?.delete(TABLE_USER_GROUPS, "$KEY_USER_ID = ?", arrayOf("-1"))
+    }
+
     override fun onCreate(db: SQLiteDatabase?) {
         val createUsersTable = ("CREATE TABLE " + TABLE_USERS + "("
                 + KEY_ID + " INTEGER PRIMARY KEY," + KEY_USERNAME + " TEXT,"
@@ -40,18 +45,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db?.execSQL(createUsersTable)
 
         val createGroupsTable = ("CREATE TABLE " + TABLE_GROUPS + "("
-                + KEY_GROUP_ID + " TEXT PRIMARY KEY," + KEY_GROUP_NAME + " TEXT,"
+                + KEY_GROUP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," + KEY_GROUP_NAME + " TEXT,"
                 + KEY_GROUP_DESCRIPTION + " TEXT," + KEY_GROUP_LEADER_ID + " INTEGER,"
                 + KEY_GROUP_CODE + " TEXT" + ")")
         db?.execSQL(createGroupsTable)
 
         val createUserGroupsTable = ("CREATE TABLE " + TABLE_USER_GROUPS + "("
-                + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " TEXT,"
+                + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " INTEGER,"
                 + "PRIMARY KEY(" + KEY_USER_ID + ", " + KEY_GROUP_ID + "))")
         db?.execSQL(createUserGroupsTable)
-
-        // Pre-populate with mock data
-        addUser(db, "testuser", "test@example.com", "password123")
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
@@ -72,14 +74,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         values.put(KEY_PASSWORD, password) // In a real app, hash the password
         val success = db.insert(TABLE_USERS, null, values)
         return success != -1L
-    }
-
-    private fun addUser(db: SQLiteDatabase?, username: String, email: String, password: String) {
-        val values = ContentValues()
-        values.put(KEY_USERNAME, username)
-        values.put(KEY_EMAIL, email)
-        values.put(KEY_PASSWORD, password) // In a real app, hash the password
-        db?.insert(TABLE_USERS, null, values)
     }
 
     fun checkUser(email: String, password: String): Boolean {
@@ -120,20 +114,40 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     fun createGroup(groupName: String, groupDescription: String, leaderId: Int, groupCode: String): Long {
         val db = this.writableDatabase
-        val groupId = UUID.randomUUID().toString()
+        var groupId = -1L
 
-        val values = ContentValues()
-        values.put(KEY_GROUP_ID, groupId)
-        values.put(KEY_GROUP_NAME, groupName)
-        values.put(KEY_GROUP_DESCRIPTION, groupDescription)
-        values.put(KEY_GROUP_LEADER_ID, leaderId)
-        values.put(KEY_GROUP_CODE, groupCode)
-        val success = db.insert(TABLE_GROUPS, null, values)
+        db.beginTransaction()
+        try {
+            // Insert into groups table
+            val groupValues = ContentValues().apply {
+                put(KEY_GROUP_NAME, groupName)
+                put(KEY_GROUP_DESCRIPTION, groupDescription)
+                put(KEY_GROUP_LEADER_ID, leaderId)
+                put(KEY_GROUP_CODE, groupCode)
+            }
+            groupId = db.insert(TABLE_GROUPS, null, groupValues)
 
-        if (success != -1L) {
-            addUserToGroup(leaderId, groupId)
+            if (groupId == -1L) {
+                return -1L
+            }
+
+            // Insert leader into user_groups table
+            val userGroupValues = ContentValues().apply {
+                put(KEY_USER_ID, leaderId)
+                put(KEY_GROUP_ID, groupId)
+            }
+            val success = db.insertWithOnConflict(TABLE_USER_GROUPS, null, userGroupValues, SQLiteDatabase.CONFLICT_IGNORE)
+
+            if (success == -1L) {
+                groupId = -1L 
+            } else {
+                db.setTransactionSuccessful()
+            }
+            
+        } finally {
+            db.endTransaction()
         }
-        return success
+        return groupId
     }
 
     fun joinGroup(userId: Int, groupCode: String): Boolean {
@@ -144,7 +158,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val cursor = db.query(TABLE_GROUPS, columns, selection, selectionArgs, null, null, null)
 
         if (cursor.moveToFirst()) {
-            val groupId = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
+            val groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
             cursor.close()
             return addUserToGroup(userId, groupId)
         } else {
@@ -153,7 +167,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
     }
 
-    private fun addUserToGroup(userId: Int, groupId: String): Boolean {
+    private fun addUserToGroup(userId: Int, groupId: Long): Boolean {
         val db = this.writableDatabase
         val values = ContentValues()
         values.put(KEY_USER_ID, userId)
@@ -165,21 +179,25 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     fun getGroupsForUser(userId: Int): List<Group> {
         val groups = mutableListOf<Group>()
         val db = this.readableDatabase
+        
+        // This query correctly joins the groups and user_groups table.
+        // It ensures that only groups the user is actually a member of are returned.
         val query = "SELECT g.*, u.$KEY_USERNAME as leader_name FROM $TABLE_GROUPS g " +
                     "INNER JOIN $TABLE_USER_GROUPS ug ON g.$KEY_GROUP_ID = ug.$KEY_GROUP_ID " +
                     "INNER JOIN $TABLE_USERS u ON g.$KEY_GROUP_LEADER_ID = u.$KEY_ID " +
                     "WHERE ug.$KEY_USER_ID = ?"
+        
         val cursor = db.rawQuery(query, arrayOf(userId.toString()))
 
         if (cursor.moveToFirst()) {
             do {
-                val groupId = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
+                val groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
                 val group = Group(
                     id = groupId,
                     name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
                     description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_DESCRIPTION)),
                     leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
-                    members = getGroupMembers(groupId), // This is still N+1, but let's fix the crash first.
+                    members = getGroupMembers(groupId),
                     lastUpdated = System.currentTimeMillis(), // Placeholder
                     progress = 50 // Placeholder
                 )
@@ -190,11 +208,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return groups
     }
 
-    private fun getGroupMembers(groupId: String): List<String> {
+    private fun getGroupMembers(groupId: Long): List<String> {
         val members = mutableListOf<String>()
         val db = this.readableDatabase
         val query = "SELECT u.$KEY_USERNAME FROM $TABLE_USERS u INNER JOIN $TABLE_USER_GROUPS ug ON u.$KEY_ID = ug.$KEY_USER_ID WHERE ug.$KEY_GROUP_ID = ?"
-        val cursor = db.rawQuery(query, arrayOf(groupId))
+        val cursor = db.rawQuery(query, arrayOf(groupId.toString()))
 
         if (cursor.moveToFirst()) {
             do {
@@ -204,19 +222,21 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         return members
     }
-
-    private fun getUsername(userId: Int): String {
+    
+    fun getUserDetails(userId: Int): Pair<String, String>? {
         val db = this.readableDatabase
-        val columns = arrayOf(KEY_USERNAME)
+        val columns = arrayOf(KEY_USERNAME, KEY_EMAIL)
         val selection = "$KEY_ID = ?"
         val selectionArgs = arrayOf(userId.toString())
         val cursor = db.query(TABLE_USERS, columns, selection, selectionArgs, null, null, null)
 
-        var username = ""
+        var userDetails: Pair<String, String>? = null
         if (cursor.moveToFirst()) {
-            username = cursor.getString(cursor.getColumnIndexOrThrow(KEY_USERNAME))
+            val username = cursor.getString(cursor.getColumnIndexOrThrow(KEY_USERNAME))
+            val email = cursor.getString(cursor.getColumnIndexOrThrow(KEY_EMAIL))
+            userDetails = Pair(username, email)
         }
         cursor.close()
-        return username
+        return userDetails
     }
 }

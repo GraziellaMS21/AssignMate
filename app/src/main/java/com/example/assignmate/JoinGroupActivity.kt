@@ -51,39 +51,42 @@ class JoinGroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigation
         }
 
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-        bottomNavigationView.selectedItemId = R.id.navigation_create // Highlight the create icon
+        bottomNavigationView.selectedItemId = R.id.action_create // Highlight the create icon
         bottomNavigationView.setOnNavigationItemSelectedListener(this)
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.navigation_home -> {
+            R.id.action_home -> {
                 val intent = Intent(this, MainActivity::class.java)
                 intent.putExtra("USER_ID", currentUserId)
                 startActivity(intent)
                 finish()
                 return true
             }
-            R.id.navigation_groups -> {
+            R.id.action_groups -> {
                 val intent = Intent(this, GroupActivity::class.java)
                 intent.putExtra("USER_ID", currentUserId)
                 startActivity(intent)
                 finish()
                 return true
             }
-            R.id.navigation_create -> {
+            R.id.action_create -> {
                 val intent = Intent(this, CreateGroupActivity::class.java)
                 intent.putExtra("USER_ID", currentUserId)
                 startActivity(intent)
                 finish()
                 return true
             }
-            R.id.navigation_tasks -> {
+            R.id.action_tasks -> {
                 Toast.makeText(this, "Tasks not implemented yet", Toast.LENGTH_SHORT).show()
                 return true
             }
-            R.id.navigation_profile -> {
-                Toast.makeText(this, "Profile not implemented yet", Toast.LENGTH_SHORT).show()
+            R.id.action_profile -> {
+                val intent = Intent(this, ProfileActivity::class.java)
+                intent.putExtra("USER_ID", currentUserId)
+                startActivity(intent)
+                finish()
                 return true
             }
         }
