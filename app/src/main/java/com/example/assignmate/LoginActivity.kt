@@ -27,7 +27,7 @@ class LoginActivity : AppCompatActivity() {
                     val userId = databaseHelper.getUserId(email)
                     Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
                     val intent = Intent(this, MainActivity::class.java)
-                    intent.putExtra("currentUserId", userId) // Use the same key consistently
+                    intent.putExtra("USER_ID", userId) // Use the same key consistently
                     startActivity(intent)
                     finish()
                 } else {
