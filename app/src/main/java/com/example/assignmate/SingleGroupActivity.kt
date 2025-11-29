@@ -30,7 +30,7 @@ class SingleGroupActivity : AppCompatActivity() {
         groupId = intent.getLongExtra("GROUP_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
         val groupName = intent.getStringExtra("GROUP_NAME")
-        binding.groupNameText.text = groupName
+        binding.groupNameHeader.text = groupName
 
         binding.backButton.setOnClickListener {
             finish()

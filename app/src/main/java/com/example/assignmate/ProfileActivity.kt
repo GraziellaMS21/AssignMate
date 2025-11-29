@@ -46,17 +46,19 @@ class ProfileActivity : AppCompatActivity(), BottomNavigationView.OnNavigationIt
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_profile) {
+            return true
+        }
+
         val intent = when (item.itemId) {
             R.id.action_home -> Intent(this, MainActivity::class.java)
             R.id.action_groups -> Intent(this, GroupActivity::class.java)
             R.id.action_create -> Intent(this, CreateGroupActivity::class.java)
-            // R.id.action_tasks -> Intent(this, TasksActivity::class.java)
-            // R.id.action_profile -> return true // Already on this screen
+            R.id.action_tasks -> Intent(this, TaskActivity::class.java)
             else -> return false
         }
         intent.putExtra("USER_ID", currentUserId)
         startActivity(intent)
-        // finish() // Optional: uncomment if you want to close the current activity
         return true
     }
 }

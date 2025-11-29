@@ -1,60 +1,66 @@
 package com.example.assignmate
 
+import android.content.Intent
 import android.os.Bundle
+import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.assignmate.adapter.TaskAdapter
-import com.example.assignmate.databinding.FragmentGroupTasksBinding
+import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.model.Task
 
 class GroupTasksFragment : Fragment() {
 
-    private var _binding: FragmentGroupTasksBinding? = null
-    private val binding get() = _binding!!
     private lateinit var databaseHelper: DatabaseHelper
     private var groupId: Long = -1
+
+    private lateinit var tasksRecyclerView: RecyclerView
+    private lateinit var taskAdapter: TaskAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
             groupId = it.getLong(ARG_GROUP_ID)
         }
+        databaseHelper = DatabaseHelper(requireContext())
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        _binding = FragmentGroupTasksBinding.inflate(inflater, container, false)
-        return binding.root
+        val view = inflater.inflate(R.layout.fragment_group_tasks, container, false)
+        tasksRecyclerView = view.findViewById(R.id.tasks_recycler_view)
+        tasksRecyclerView.layoutManager = LinearLayoutManager(context)
+
+        loadTasks()
+
+        return view
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        databaseHelper = DatabaseHelper(requireContext())
-
+    private fun loadTasks() {
         val tasks = databaseHelper.getTasksForGroup(groupId)
-        binding.tasksRecyclerView.layoutManager = LinearLayoutManager(context)
-        binding.tasksRecyclerView.adapter = TaskAdapter(tasks)
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+        taskAdapter = TaskAdapter(tasks) { task ->
+            val intent = Intent(activity, TaskDetailActivity::class.java)
+            intent.putExtra("TASK_ID", task.id)
+            // We need to pass the current user's ID as well, which we get from the activity
+            val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
+            intent.putExtra("USER_ID", currentUserId)
+            startActivity(intent)
+        }
+        tasksRecyclerView.adapter = taskAdapter
     }
 
     companion object {
-        private const val ARG_GROUP_ID = "group_id"
+        private const val ARG_GROUP_ID = "GROUP_ID"
 
-        fun newInstance(groupId: Long): GroupTasksFragment {
-            val fragment = GroupTasksFragment()
-            val args = Bundle()
-            args.putLong(ARG_GROUP_ID, groupId)
-            fragment.arguments = args
-            return fragment
-        }
+        @JvmStatic
+        fun newInstance(groupId: Long) =
+            GroupTasksFragment().apply {
+                arguments = Bundle().apply {
+                    putLong(ARG_GROUP_ID, groupId)
+                }
+            }
     }
 }
