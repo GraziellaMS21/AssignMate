@@ -4,16 +4,16 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="#fff1e8 "
     tools:context=".ProfileActivity">
 
     <LinearLayout
         android:id="@+id/profile_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center_horizontal">
+        android:padding="24dp">
 
         <ImageView
             android:id="@+id/profile_image"
@@ -26,9 +26,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:textColor="#000000"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#000000"
             tools:text="John Doe" />
 
         <TextView
@@ -36,8 +36,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textSize="16sp"
             android:textColor="#8A8A8A"
+            android:textSize="16sp"
             tools:text="john.doe@example.com" />
     </LinearLayout>
 
@@ -46,9 +46,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/profile_header"
-        android:orientation="vertical"
         android:layout_marginTop="24dp"
         android:divider="@drawable/divider"
+        android:orientation="vertical"
         android:showDividers="middle">
 
         <TextView
@@ -77,8 +77,8 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="16dp"
-        android:text="Sign Out"
-        android:backgroundTint="#FF3B30" />
+        android:backgroundTint="#FF3B30"
+        android:text="Sign Out" />
 
     <include
         android:id="@+id/bottom_navigation"
