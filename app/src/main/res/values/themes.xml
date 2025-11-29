@@ -1,11 +1,22 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.AssignMate" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
+    <style name="Base.Theme.AssignMate" parent="Theme.Material3.Light.NoActionBar">
+
+    <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
+        <item name="android:textColor">@color/black</item>
     </style>
 
     <style name="Theme.AssignMate" parent="Base.Theme.AssignMate" />
+
+    <style name="Widget.App.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">#262224</item>
+        <item name="hintTextColor">#262224</item>
+        <item name="android:textColorHint">#262224</item>
+        <item name="cursorColor">#262224</item>
+        <item name="android:textColor">#262224</item>
+    </style>
 
     <style name="ProfileMenuItem">
         <item name="android:layout_width">match_parent</item>

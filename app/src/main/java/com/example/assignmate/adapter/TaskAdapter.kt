@@ -1,9 +1,11 @@
 package com.example.assignmate.adapter
 
 import android.content.Intent
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.R
 import com.example.assignmate.TaskDetailActivity
@@ -36,7 +38,15 @@ class TaskAdapter(
             binding.taskName.text = task.name
             binding.taskDescription.text = task.description
             binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
-            binding.status.text = "Status: ${task.status}"
+            binding.status.text = task.status
+
+            val statusColor = when (task.status) {
+                "Not Started" -> R.color.status_not_started
+                "In progress" -> R.color.status_in_progress
+                "Complete" -> R.color.status_complete
+                else -> android.R.color.black
+            }
+            binding.status.setTextColor(ContextCompat.getColor(itemView.context, statusColor))
 
             binding.root.setOnClickListener {
                 val context = itemView.context

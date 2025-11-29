@@ -5,8 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#fff1e8"
-    android:orientation="vertical"
     android:gravity="center"
+    android:orientation="vertical"
     tools:context=".LoginActivity">
 
     <!-- TOP: LOGO + ASSIGNMATE -->
@@ -14,9 +14,9 @@
         android:id="@+id/logoArea"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
         android:gravity="center"
-        android:orientation="horizontal"
-        android:layout_marginBottom="20dp">
+        android:orientation="horizontal">
 
         <ImageView
             android:id="@+id/imageView"
@@ -49,10 +49,10 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="15dp"
         android:layout_marginEnd="15dp"
-        android:orientation="vertical"
-        android:padding="30dp"
         android:background="@drawable/rounded_login_ui"
-        android:backgroundTint="#FFFFFF">
+        android:backgroundTint="#FFFFFF"
+        android:orientation="vertical"
+        android:padding="30dp">
 
         <TextView
             android:id="@+id/textView3"
@@ -75,29 +75,30 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="20dp">
+            android:paddingBottom="20dp"
+            style="@style/Widget.App.TextInputLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/email"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/enter_your_email"
-                android:textColorHint="#000000" />
+                android:textColor="#262224"
+                android:hint="@string/enter_your_email" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Password -->
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="20dp">
+            android.paddingBottom="20dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/enter_password"
-                android:textColorHint="#000000"
-                android:textColorLink="#000000" />
+                android:textColor="#262224"
+                android:hint="@string/enter_password" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Button -->

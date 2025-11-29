@@ -12,6 +12,7 @@ import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.example.assignmate.adapter.CommentAdapter
 import com.example.assignmate.databinding.ActivityTaskDetailBinding
 import com.example.assignmate.model.Task
@@ -64,9 +65,9 @@ class TaskDetailActivity : AppCompatActivity() {
         binding.taskTitleInput.setText(task!!.name)
         binding.taskDescriptionInput.setText(task!!.description)
 
-        val statusAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, arrayOf("Not Started", "In progress", "Mark as Complete"))
+        val statusAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, arrayOf("Not Started", "In progress", "Complete"))
         (binding.statusDropdown as? AutoCompleteTextView)?.setAdapter(statusAdapter)
-        binding.statusDropdown.setText(task!!.status, false)
+        updateStatus(task!!.status)
 
         binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(task!!.dueDate))
 
@@ -238,6 +239,13 @@ class TaskDetailActivity : AppCompatActivity() {
     private fun updateStatus(status: String) {
         if (databaseHelper.updateTaskStatus(taskId, status)) {
             binding.statusDropdown.setText(status, false)
+            val statusColor = when (status) {
+                "Not Started" -> R.color.status_not_started
+                "In progress" -> R.color.status_in_progress
+                "Complete" -> R.color.status_complete
+                else -> android.R.color.black
+            }
+            binding.statusDropdown.setTextColor(ContextCompat.getColor(this, statusColor))
             Toast.makeText(this, "Task status updated", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(this, "Failed to update status", Toast.LENGTH_SHORT).show()

@@ -11,6 +11,7 @@
         android:id="@+id/header_layout"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
+        android:background="#FFFFFF"
         android:gravity="center_vertical">
 
         <ImageView
@@ -47,6 +48,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/header_layout"
+        android:backgroundTint="#FFFFFF"
         app:tabGravity="fill"
         app:tabIndicatorColor="#ee6e2c"
         app:tabMode="fixed" />
@@ -55,7 +57,8 @@
         android:id="@+id/view_pager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/tab_layout" />
+        android:layout_below="@id/tab_layout"
+        android:background="#fff1e8" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add_task"

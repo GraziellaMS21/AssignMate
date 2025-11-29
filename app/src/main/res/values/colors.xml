@@ -2,4 +2,7 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="status_not_started">#D32F2F</color>
+    <color name="status_in_progress">#FBC02D</color>
+    <color name="status_complete">#388E3C</color>
 </resources>

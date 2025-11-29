@@ -70,6 +70,7 @@ android:layout_marginBottom="20dp">
 
         <!-- Username -->
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingBottom="20dp">
@@ -78,13 +79,13 @@ android:layout_marginBottom="20dp">
                 android:id="@+id/username_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter Username"
-                android:textColorHint="#000000"
-                android:textColorLink="#000000" />
+                android:textColor="#262224"
+                android:hint="Enter Username" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Email -->
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingBottom="20dp">
@@ -93,13 +94,13 @@ android:layout_marginBottom="20dp">
                 android:id="@+id/email_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter Email"
-                android:textColorHint="#000000"
-                android:textColorLink="#000000" />
+                android:textColor="#262224"
+                android:hint="Enter Email" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Password -->
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingBottom="20dp">
@@ -108,14 +109,14 @@ android:layout_marginBottom="20dp">
                 android:id="@+id/password_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="#262224"
                 android:hint="Enter Password"
-                android:inputType="textPassword"
-                android:textColorHint="#000000"
-                android:textColorLink="#000000" />
+                android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Confirm Password -->
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
@@ -123,10 +124,9 @@ android:layout_marginBottom="20dp">
                 android:id="@+id/confirm_password_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="#262224"
                 android:hint="Confirm Password"
-                android:inputType="textPassword"
-                android:textColorHint="#000000"
-                android:textColorLink="#000000" />
+                android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- BUTTON -->

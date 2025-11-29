@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="#FFFFFF"
     android:orientation="vertical"
     android:padding="24dp">
 
@@ -30,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Create a group instead?"
-        android:textColor="?attr/colorPrimary"
+        android:textColor="#FF5722"
         android:textStyle="bold" />
 
 </LinearLayout>
