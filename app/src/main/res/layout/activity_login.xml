@@ -1,32 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#fff1e8 "
+    android:background="#fff1e8"
+    android:orientation="vertical"
+    android:gravity="center"
     tools:context=".LoginActivity">
 
+    <!-- TOP: LOGO + ASSIGNMATE -->
+    <LinearLayout
+        android:id="@+id/logoArea"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="20dp">
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="70dp"
+            android:layout_height="96dp"
+            app:srcCompat="@drawable/logo" />
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="4dp"
+            android:text="Assign"
+            android:textColor="#262224"
+            android:textSize="45dp" />
+
+        <TextView
+            android:id="@+id/textView2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mate"
+            android:textColor="#bebf91"
+            android:textSize="45dp" />
+    </LinearLayout>
+
+    <!-- LOGIN CARD -->
     <LinearLayout
         android:id="@+id/linearLayout"
-        android:layout_width="350dp"
-        android:layout_height="500dp"
-        android:layout_marginBottom="136dp"
-        android:background="@drawable/rounded_login_ui"
-        android:backgroundTint="#FFFFFF"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
         android:orientation="vertical"
         android:padding="30dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.491"
-        app:layout_constraintStart_toStartOf="parent">
+        android:background="@drawable/rounded_login_ui"
+        android:backgroundTint="#FFFFFF">
 
         <TextView
             android:id="@+id/textView3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="SIGN IN ACCOUNT"
-            android:textColor="#ee6e2c" />
+            android:textColor="#ee6e2c"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/textView4"
@@ -37,6 +71,7 @@
             android:text="Sign in to Continue"
             android:textColor="#000000" />
 
+        <!-- Email -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -46,9 +81,11 @@
                 android:id="@+id/email"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/enter_your_email" />
+                android:hint="@string/enter_your_email"
+                android:textColorHint="#000000" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Password -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -58,64 +95,27 @@
                 android:id="@+id/password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/enter_password" />
+                android:hint="@string/enter_password"
+                android:textColorHint="#000000"
+                android:textColorLink="#000000" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Button -->
         <Button
             android:id="@+id/login"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:backgroundTint="#bebf91 "
-            android:insetBottom="20dp"
+            android:backgroundTint="#bebf91"
             android:text="@string/userLogin"
-            android:textColorLink="#000000" />
+            android:textColor="#000000" />
 
         <TextView
             android:id="@+id/register_prompt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:text="@string/don_t_have_an_account_register"
             android:textAlignment="center" />
-
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="344dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="36dp"
-        android:layout_marginEnd="31dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.493">
-
-        <ImageView
-            android:id="@+id/imageView"
-            android:layout_width="33dp"
-            android:layout_height="96dp"
-            android:layout_weight="1"
-            app:srcCompat="@drawable/logo" />
-
-        <TextView
-            android:id="@+id/textView"
-            android:layout_width="75dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Assign"
-            android:textColor="#262224"
-            android:textSize="45dp" />
-
-        <TextView
-            android:id="@+id/textView2"
-            android:layout_width="45dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Mate"
-            android:textColor="#bebf91"
-            android:textSize="45dp" />
-    </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

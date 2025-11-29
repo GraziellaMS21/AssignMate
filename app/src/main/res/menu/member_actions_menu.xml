@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_assign_co_leader"
+        android:title="Assign as Co-Leader" />
+
+    <item
+        android:id="@+id/action_remove_member"
+        android:title="Remove from Group" />
+
+</menu>

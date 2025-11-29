@@ -1,62 +1,65 @@
 package com.example.assignmate.adapter
 
-import android.graphics.Color
+import android.content.Intent
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.R
+import com.example.assignmate.TaskDetailActivity
+import com.example.assignmate.databinding.ItemTaskBinding
 import com.example.assignmate.model.Task
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-class TaskAdapter(private val tasks: List<Task>, private val onTaskClick: (Task) -> Unit) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
+class TaskAdapter(
+    private val tasks: List<Task>,
+    private val currentUserId: Int,
+    private val onDeleteClicked: (Task) -> Unit
+) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_task, parent, false)
-        return TaskViewHolder(view)
+        val binding = ItemTaskBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return TaskViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
         val task = tasks[position]
         holder.bind(task)
-        holder.itemView.setOnClickListener { onTaskClick(task) }
     }
 
     override fun getItemCount() = tasks.size
 
-    class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val taskName: TextView = itemView.findViewById(R.id.task_name)
-        private val taskDescription: TextView = itemView.findViewById(R.id.task_description)
-        private val dueDate: TextView = itemView.findViewById(R.id.due_date)
-        private val status: TextView = itemView.findViewById(R.id.status)
-
+    inner class TaskViewHolder(private val binding: ItemTaskBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(task: Task) {
-            taskName.text = task.name
+            binding.taskName.text = task.name
+            binding.taskDescription.text = task.description
+            binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
+            binding.status.text = "Status: ${task.status}"
 
-            if (task.description.isNotEmpty()) {
-                taskDescription.text = task.description
-                taskDescription.visibility = View.VISIBLE
-            } else {
-                taskDescription.visibility = View.GONE
+            binding.root.setOnClickListener {
+                val context = itemView.context
+                val intent = Intent(context, TaskDetailActivity::class.java).apply {
+                    putExtra("TASK_ID", task.id)
+                    putExtra("USER_ID", currentUserId)
+                }
+                context.startActivity(intent)
             }
 
-            if (task.dueDate > 0) {
-                val date = Date(task.dueDate)
-                val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                dueDate.text = "Due: ${format.format(date)}"
-                dueDate.visibility = View.VISIBLE
-            } else {
-                dueDate.visibility = View.GONE
-            }
-
-            if (task.status == "Complete") {
-                status.text = "Completed"
-                status.setTextColor(Color.GREEN)
-            } else {
-                status.text = "Pending"
-                status.setTextColor(Color.RED)
+            binding.taskOverflowMenu.setOnClickListener { view ->
+                val popup = PopupMenu(view.context, view)
+                popup.menuInflater.inflate(R.menu.task_detail_menu, popup.menu)
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.action_delete_task -> {
+                            onDeleteClicked(task)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
             }
         }
     }

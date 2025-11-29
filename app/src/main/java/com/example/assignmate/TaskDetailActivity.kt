@@ -1,116 +1,246 @@
 package com.example.assignmate
 
+import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.TextView
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.RecyclerView
-import com.example.assignmate.model.Comment
+import com.example.assignmate.adapter.CommentAdapter
+import com.example.assignmate.databinding.ActivityTaskDetailBinding
 import com.example.assignmate.model.Task
+import com.google.android.material.chip.Chip
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class TaskDetailActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityTaskDetailBinding
     private lateinit var databaseHelper: DatabaseHelper
-    private var currentTaskId: Long = -1
+    private var taskId: Long = -1
     private var currentUserId: Int = -1
-
-    private lateinit var backButton: ImageButton
-    private lateinit var taskNameTextView: TextView
-    private lateinit var taskDescriptionTextView: TextView
-    private lateinit var taskStatusTextView: TextView
-    private lateinit var completeTaskButton: Button
-    private lateinit var commentsRecyclerView: RecyclerView
-    private lateinit var commentInput: EditText
-    private lateinit var addCommentButton: Button
-
-    private lateinit var commentAdapter: CommentAdapter
+    private var groupLeaderId: Int = -1
+    private var isAssigned: Boolean = false
+    private var task: Task? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_task_detail)
+        binding = ActivityTaskDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         databaseHelper = DatabaseHelper(this)
-        currentTaskId = intent.getLongExtra("TASK_ID", -1)
+        taskId = intent.getLongExtra("TASK_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
 
-        if (currentTaskId == -1L || currentUserId == -1) {
-            Toast.makeText(this, "Error: Task or User not found", Toast.LENGTH_SHORT).show()
+        task = databaseHelper.getTask(taskId)
+        if (task == null) {
             finish()
             return
         }
 
-        backButton = findViewById(R.id.back_button)
-        taskNameTextView = findViewById(R.id.task_detail_name)
-        taskDescriptionTextView = findViewById(R.id.task_detail_description)
-        taskStatusTextView = findViewById(R.id.task_detail_status)
-        completeTaskButton = findViewById(R.id.complete_task_button)
-        commentsRecyclerView = findViewById(R.id.comments_recycler_view)
-        commentInput = findViewById(R.id.comment_input)
-        addCommentButton = findViewById(R.id.add_comment_button)
+        groupLeaderId = databaseHelper.getGroupLeaderId(task!!.groupId)
+        isAssigned = task!!.assignedTo?.contains(currentUserId) == true
 
-        loadTaskDetails()
+        setupToolbar()
+        setupViews()
+        setupListeners()
+        loadComments()
+    }
 
-        backButton.setOnClickListener {
-            finish()
-        }
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Task Details"
+    }
 
-        completeTaskButton.setOnClickListener {
-            updateTaskStatus("Completed")
-        }
+    private fun setupViews() {
+        binding.taskTitleInput.setText(task!!.name)
+        binding.taskDescriptionInput.setText(task!!.description)
 
-        addCommentButton.setOnClickListener {
-            val commentText = commentInput.text.toString().trim()
-            if (commentText.isNotEmpty()) {
-                addComment(commentText)
-            }
+        val statusAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, arrayOf("Not Started", "In progress", "Mark as Complete"))
+        (binding.statusDropdown as? AutoCompleteTextView)?.setAdapter(statusAdapter)
+        binding.statusDropdown.setText(task!!.status, false)
+
+        binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(task!!.dueDate))
+
+        updateAssignedMembersChips()
+    }
+
+    private fun updateAssignedMembersChips() {
+        binding.assignedMembersChipGroup.removeAllViews()
+        val assignedMembers = databaseHelper.getGroupMembers(task!!.groupId).filter { task!!.assignedTo?.contains(it.id) == true }
+        for (member in assignedMembers) {
+            val chip = Chip(this)
+            chip.text = member.name
+            binding.assignedMembersChipGroup.addView(chip)
         }
     }
 
-    private fun loadTaskDetails() {
-        val task = databaseHelper.getTask(currentTaskId)
-        if (task != null) {
-            taskNameTextView.text = task.name
-            taskDescriptionTextView.text = task.description
-            taskStatusTextView.text = "Status: ${task.status}"
+    private fun setupListeners() {
+        binding.taskTitleInput.addTextChangedListener(textWatcher)
+        binding.taskDescriptionInput.addTextChangedListener(textWatcher)
 
-            if (task.status == "Completed") {
-                completeTaskButton.isEnabled = false
-                completeTaskButton.text = "Task is Already Completed"
+        binding.dueDateInput.setOnClickListener {
+            if (currentUserId == groupLeaderId) {
+                showDatePickerDialog()
             }
-
-            loadComments()
-        } else {
-            Toast.makeText(this, "Task not found", Toast.LENGTH_SHORT).show()
-            finish()
         }
+
+        binding.editAssignmentsButton.setOnClickListener {
+            if (currentUserId == groupLeaderId) {
+                showEditAssignmentsDialog()
+            }
+        }
+
+        binding.addCommentButton.setOnClickListener {
+            val commentText = binding.commentInput.text.toString()
+            if (commentText.isNotEmpty()) {
+                val newCommentId = databaseHelper.addComment(taskId, currentUserId, commentText)
+                if (newCommentId != -1L) {
+                    loadComments()
+                    binding.commentInput.text.clear()
+                } else {
+                    Toast.makeText(this, "Failed to add comment", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        binding.saveChangesButton.setOnClickListener {
+            saveChanges()
+        }
+    }
+
+    private val textWatcher = object : TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            binding.saveChangesButton.isEnabled = true
+        }
+        override fun afterTextChanged(s: Editable?) {}
+    }
+
+    private fun showDatePickerDialog() {
+        val calendar = Calendar.getInstance()
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        val datePickerDialog = DatePickerDialog(this, {
+            _, selectedYear, selectedMonth, selectedDay ->
+            val newDueDate = "$selectedDay/${selectedMonth + 1}/$selectedYear"
+            binding.dueDateInput.setText(newDueDate)
+            binding.saveChangesButton.isEnabled = true
+        }, year, month, day)
+        datePickerDialog.show()
+    }
+
+    private fun showEditAssignmentsDialog() {
+        val members = databaseHelper.getGroupMembers(task!!.groupId)
+        val memberNames = members.map { it.name }.toTypedArray()
+        val selectedMembers = BooleanArray(memberNames.size) {
+            task!!.assignedTo?.contains(members[it].id) == true
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Assign Members")
+            .setMultiChoiceItems(memberNames, selectedMembers) { _, which, isChecked ->
+                selectedMembers[which] = isChecked
+            }
+            .setPositiveButton("OK") { _, _ ->
+                val newAssignedTo = mutableListOf<Int>()
+                for (i in selectedMembers.indices) {
+                    if (selectedMembers[i]) {
+                        newAssignedTo.add(members[i].id)
+                    }
+                }
+                task = task!!.copy(assignedTo = newAssignedTo)
+                updateAssignedMembersChips()
+                binding.saveChangesButton.isEnabled = true
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun saveChanges() {
+        val newTitle = binding.taskTitleInput.text.toString()
+        val newDescription = binding.taskDescriptionInput.text.toString()
+
+        if (newTitle.isEmpty() && newDescription.isEmpty()) {
+            Toast.makeText(this, "Task title or description cannot be empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val newDueDateText = binding.dueDateInput.text.toString()
+        val calendar = Calendar.getInstance()
+        val dateParts = newDueDateText.split("/")
+        calendar.set(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
+        val newDueDateMillis = calendar.timeInMillis
+
+        databaseHelper.updateTask(taskId, newTitle, newDescription, newDueDateMillis, task!!.assignedTo)
+
+        Toast.makeText(this, "Changes saved", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, SingleGroupActivity::class.java)
+        intent.putExtra("GROUP_ID", task!!.groupId)
+        intent.putExtra("USER_ID", currentUserId)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun loadComments() {
-        val comments = databaseHelper.getCommentsForTask(currentTaskId)
-        commentAdapter = CommentAdapter(comments)
-        commentsRecyclerView.adapter = commentAdapter
+        val comments = databaseHelper.getCommentsForTask(taskId)
+        binding.commentsRecyclerView.adapter = CommentAdapter(comments)
     }
 
-    private fun updateTaskStatus(newStatus: String) {
-        if (databaseHelper.updateTaskStatus(currentTaskId, newStatus)) {
-            Toast.makeText(this, "Task marked as complete!", Toast.LENGTH_SHORT).show()
-            loadTaskDetails() // Refresh the task details to show the new status
-        } else {
-            Toast.makeText(this, "Failed to update task status", Toast.LENGTH_SHORT).show()
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        if (isAssigned || currentUserId == groupLeaderId) {
+            menuInflater.inflate(R.menu.task_detail_menu, menu)
+        }
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                finish()
+                true
+            }
+            R.id.action_delete_task -> {
+                showDeleteConfirmationDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 
-    private fun addComment(commentText: String) {
-        val newCommentId = databaseHelper.addComment(currentTaskId, currentUserId, commentText)
-        if (newCommentId != -1L) {
-            commentInput.text.clear()
-            Toast.makeText(this, "Comment added", Toast.LENGTH_SHORT).show()
-            loadComments() // Refresh the comments list
+    private fun showDeleteConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Task")
+            .setMessage("Are you sure you want to delete this task?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (databaseHelper.deleteTask(taskId)) {
+                    Toast.makeText(this, "Task deleted", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this, "Failed to delete task", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun updateStatus(status: String) {
+        if (databaseHelper.updateTaskStatus(taskId, status)) {
+            binding.statusDropdown.setText(status, false)
+            Toast.makeText(this, "Task status updated", Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(this, "Failed to add comment", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to update status", Toast.LENGTH_SHORT).show()
         }
     }
 }

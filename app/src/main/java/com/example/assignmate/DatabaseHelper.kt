@@ -6,12 +6,13 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.assignmate.model.Comment
 import com.example.assignmate.model.Group
+import com.example.assignmate.model.Member
 import com.example.assignmate.model.Task
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_VERSION = 6
+        private const val DATABASE_VERSION = 7
         private const val DATABASE_NAME = "AssignMate.db"
 
         // User table
@@ -32,6 +33,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         // User-Group mapping table
         private const val TABLE_USER_GROUPS = "user_groups"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_ROLE = "role"
 
         // Task table
         private const val TABLE_TASKS = "tasks"
@@ -76,6 +78,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         val createUserGroupsTable = ("CREATE TABLE " + TABLE_USER_GROUPS + "("
                 + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " INTEGER,"
+                + KEY_ROLE + " TEXT DEFAULT 'member',"
                 + "PRIMARY KEY(" + KEY_USER_ID + ", " + KEY_GROUP_ID + "))")
         db?.execSQL(createUserGroupsTable)
 
@@ -185,6 +188,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             val userGroupValues = ContentValues().apply {
                 put(KEY_USER_ID, leaderId)
                 put(KEY_GROUP_ID, groupId)
+                put(KEY_ROLE, "leader")
             }
             val success = db.insertWithOnConflict(TABLE_USER_GROUPS, null, userGroupValues, SQLiteDatabase.CONFLICT_IGNORE)
 
@@ -246,6 +250,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     id = groupId,
                     name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
                     description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_DESCRIPTION)),
+                    code = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_CODE)),
                     leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
                     members = getGroupMembersAsListOfString(groupId),
                     lastUpdated = System.currentTimeMillis(), // Placeholder
@@ -258,17 +263,18 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return groups
     }
 
-    fun getGroupMembers(groupId: Long): List<Pair<Int, String>> {
-        val members = mutableListOf<Pair<Int, String>>()
+    fun getGroupMembers(groupId: Long): List<Member> {
+        val members = mutableListOf<Member>()
         val db = this.readableDatabase
-        val query = "SELECT u.$KEY_ID, u.$KEY_USERNAME FROM $TABLE_USERS u INNER JOIN $TABLE_USER_GROUPS ug ON u.$KEY_ID = ug.$KEY_USER_ID WHERE ug.$KEY_GROUP_ID = ?"
+        val query = "SELECT u.$KEY_ID, u.$KEY_USERNAME, ug.$KEY_ROLE FROM $TABLE_USERS u INNER JOIN $TABLE_USER_GROUPS ug ON u.$KEY_ID = ug.$KEY_USER_ID WHERE ug.$KEY_GROUP_ID = ?"
         val cursor = db.rawQuery(query, arrayOf(groupId.toString()))
 
         if (cursor.moveToFirst()) {
             do {
                 val userId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_ID))
                 val username = cursor.getString(cursor.getColumnIndexOrThrow(KEY_USERNAME))
-                members.add(Pair(userId, username))
+                val role = cursor.getString(cursor.getColumnIndexOrThrow(KEY_ROLE))
+                members.add(Member(userId, username, role))
             } while (cursor.moveToNext())
         }
         cursor.close()
@@ -449,5 +455,85 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         cursor.close()
         return comments
+    }
+
+    fun updateTask(taskId: Long, title: String, description: String, dueDate: Long, assignedTo: List<Int>?) {
+        val db = this.writableDatabase
+        db.beginTransaction()
+        try {
+            val values = ContentValues().apply {
+                put(KEY_TASK_NAME, title)
+                put(KEY_TASK_DESCRIPTION, description)
+                put(KEY_DUE_DATE, dueDate)
+            }
+            db.update(TABLE_TASKS, values, "$KEY_TASK_ID = ?", arrayOf(taskId.toString()))
+
+            db.delete(TABLE_TASK_ASSIGNMENTS, "$KEY_ASSIGNMENT_TASK_ID = ?", arrayOf(taskId.toString()))
+            assignedTo?.forEach {
+                assignTaskToUser(taskId, it)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getGroupIdByCode(groupCode: String): Long {
+        val db = this.readableDatabase
+        val columns = arrayOf(KEY_GROUP_ID)
+        val selection = "$KEY_GROUP_CODE = ?"
+        val selectionArgs = arrayOf(groupCode)
+        val cursor = db.query(TABLE_GROUPS, columns, selection, selectionArgs, null, null, null)
+        var groupId = -1L
+        if (cursor.moveToFirst()) {
+            groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
+        }
+        cursor.close()
+        return groupId
+    }
+
+    fun updateMemberRole(groupId: Long, userId: Int, role: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(KEY_ROLE, role)
+        val selection = "$KEY_GROUP_ID = ? AND $KEY_USER_ID = ?"
+        val selectionArgs = arrayOf(groupId.toString(), userId.toString())
+        val count = db.update(TABLE_USER_GROUPS, values, selection, selectionArgs)
+        return count > 0
+    }
+
+    fun removeMemberFromGroup(groupId: Long, userId: Int): Boolean {
+        val db = this.writableDatabase
+        val selection = "$KEY_GROUP_ID = ? AND $KEY_USER_ID = ?"
+        val selectionArgs = arrayOf(groupId.toString(), userId.toString())
+        val count = db.delete(TABLE_USER_GROUPS, selection, selectionArgs)
+        return count > 0
+    }
+
+    fun updateGroup(groupId: Long, groupName: String, groupDescription: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(KEY_GROUP_NAME, groupName)
+        values.put(KEY_GROUP_DESCRIPTION, groupDescription)
+        val selection = "$KEY_GROUP_ID = ?"
+        val selectionArgs = arrayOf(groupId.toString())
+        val count = db.update(TABLE_GROUPS, values, selection, selectionArgs)
+        return count > 0
+    }
+
+    fun deleteGroup(groupId: Long): Boolean {
+        val db = this.writableDatabase
+        val selection = "$KEY_GROUP_ID = ?"
+        val selectionArgs = arrayOf(groupId.toString())
+        val count = db.delete(TABLE_GROUPS, selection, selectionArgs)
+        return count > 0
+    }
+
+    fun deleteTask(taskId: Long): Boolean {
+        val db = this.writableDatabase
+        val selection = "$KEY_TASK_ID = ?"
+        val selectionArgs = arrayOf(taskId.toString())
+        val count = db.delete(TABLE_TASKS, selection, selectionArgs)
+        return count > 0
     }
 }

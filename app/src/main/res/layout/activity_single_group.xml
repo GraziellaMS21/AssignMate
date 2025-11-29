@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:backgroundTint="#fff1e8"
     tools:context=".SingleGroupActivity">
 
     <RelativeLayout
@@ -36,7 +37,8 @@
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:padding="8dp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_add_member" />
 
     </RelativeLayout>
 
@@ -46,6 +48,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/header_layout"
         app:tabGravity="fill"
+        app:tabIndicatorColor="#ee6e2c"
         app:tabMode="fixed" />
 
     <androidx.viewpager2.widget.ViewPager2
@@ -63,6 +66,7 @@
         android:layout_margin="16dp"
         android:src="@drawable/ic_add"
         android:visibility="gone"
+        app:backgroundTint="#bebf91"
         tools:visibility="visible" />
 
 </RelativeLayout>

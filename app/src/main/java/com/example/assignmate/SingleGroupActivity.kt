@@ -11,6 +11,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.assignmate.databinding.ActivitySingleGroupBinding
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.tabs.TabLayoutMediator
 import java.util.Calendar
 
@@ -20,6 +22,7 @@ class SingleGroupActivity : AppCompatActivity() {
     private lateinit var databaseHelper: DatabaseHelper
     private var groupId: Long = -1
     private var currentUserId: Int = -1
+    private lateinit var viewPagerAdapter: ViewPagerAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,8 +51,8 @@ class SingleGroupActivity : AppCompatActivity() {
             showCreateTaskDialog()
         }
 
-        val adapter = ViewPagerAdapter(this)
-        binding.viewPager.adapter = adapter
+        viewPagerAdapter = ViewPagerAdapter(this)
+        binding.viewPager.adapter = viewPagerAdapter
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {
@@ -91,14 +94,19 @@ class SingleGroupActivity : AppCompatActivity() {
 
     private fun showCreateTaskDialog() {
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Create Task")
-
         val view = layoutInflater.inflate(R.layout.dialog_create_task, null)
         builder.setView(view)
 
         val taskNameInput = view.findViewById<EditText>(R.id.task_name_input)
         val taskDescriptionInput = view.findViewById<EditText>(R.id.task_description_input)
         val dueDateInput = view.findViewById<EditText>(R.id.due_date_input)
+        val assignedMembersChipGroup = view.findViewById<ChipGroup>(R.id.assigned_members_chip_group)
+        val editAssignmentsButton = view.findViewById<View>(R.id.edit_assignments_button)
+
+        val members = databaseHelper.getGroupMembers(groupId)
+        val memberNames = members.map { it.name }.toTypedArray()
+        val selectedMembers = BooleanArray(memberNames.size)
+        val assignedTo = mutableListOf<Int>()
 
         dueDateInput.setOnClickListener {
             val calendar = Calendar.getInstance()
@@ -111,6 +119,28 @@ class SingleGroupActivity : AppCompatActivity() {
                 dueDateInput.setText("$selectedDay/${selectedMonth + 1}/$selectedYear")
             }, year, month, day)
             datePickerDialog.show()
+        }
+
+        editAssignmentsButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Assign Members")
+                .setMultiChoiceItems(memberNames, selectedMembers) { _, which, isChecked ->
+                    selectedMembers[which] = isChecked
+                }
+                .setPositiveButton("OK") { _, _ ->
+                    assignedTo.clear()
+                    assignedMembersChipGroup.removeAllViews()
+                    for (i in selectedMembers.indices) {
+                        if (selectedMembers[i]) {
+                            assignedTo.add(members[i].id)
+                            val chip = Chip(this)
+                            chip.text = members[i].name
+                            assignedMembersChipGroup.addView(chip)
+                        }
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
         builder.setPositiveButton("Create") { dialog, _ ->
@@ -126,7 +156,11 @@ class SingleGroupActivity : AppCompatActivity() {
 
                 val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, dueDateMillis)
                 if (newTaskId != -1L) {
-                    showAssignTaskDialog(newTaskId)
+                    assignedTo.forEach { 
+                        databaseHelper.assignTaskToUser(newTaskId, it) 
+                    }
+                    Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
+                    (viewPagerAdapter.getFragment(0) as? GroupTasksFragment)?.refreshTasks()
                 } else {
                     Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
                 }
@@ -140,40 +174,21 @@ class SingleGroupActivity : AppCompatActivity() {
         builder.show()
     }
 
-    private fun showAssignTaskDialog(taskId: Long) {
-        val members = databaseHelper.getGroupMembers(groupId)
-        val memberNames = members.map { it.second }.toTypedArray()
-        val selectedMembers = BooleanArray(memberNames.size)
+    inner class ViewPagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
+        private val fragments = mutableMapOf<Int, Fragment>()
 
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Assign Task to Members")
-        builder.setMultiChoiceItems(memberNames, selectedMembers) { _, which, isChecked ->
-            selectedMembers[which] = isChecked
-        }
-
-        builder.setPositiveButton("Assign") { dialog, _ ->
-            for (i in selectedMembers.indices) {
-                if (selectedMembers[i]) {
-                    databaseHelper.assignTaskToUser(taskId, members[i].first)
-                }
-            }
-            Toast.makeText(this, "Task assigned successfully", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-
-        builder.show()
-    }
-
-    private inner class ViewPagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
         override fun getItemCount(): Int = 2
 
         override fun createFragment(position: Int): Fragment {
-            return when (position) {
+            val fragment = when (position) {
                 0 -> GroupTasksFragment.newInstance(groupId)
-                1 -> MembersFragment.newInstance(groupId)
+                1 -> MembersFragment.newInstance(groupId, currentUserId)
                 else -> throw IllegalStateException("Invalid position")
             }
+            fragments[position] = fragment
+            return fragment
         }
+
+        fun getFragment(position: Int): Fragment? = fragments[position]
     }
 }

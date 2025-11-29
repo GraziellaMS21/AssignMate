@@ -6,8 +6,11 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.adapter.TaskAdapter
 import com.example.assignmate.model.Task
 
 class GroupTasksFragment : Fragment() {
@@ -41,15 +44,31 @@ class GroupTasksFragment : Fragment() {
 
     private fun loadTasks() {
         val tasks = databaseHelper.getTasksForGroup(groupId)
-        taskAdapter = TaskAdapter(tasks) { task ->
-            val intent = Intent(activity, TaskDetailActivity::class.java)
-            intent.putExtra("TASK_ID", task.id)
-            // We need to pass the current user's ID as well, which we get from the activity
-            val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
-            intent.putExtra("USER_ID", currentUserId)
-            startActivity(intent)
+        val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
+        taskAdapter = TaskAdapter(tasks, currentUserId) { task ->
+            showDeleteConfirmationDialog(task)
         }
         tasksRecyclerView.adapter = taskAdapter
+    }
+
+    fun refreshTasks() {
+        loadTasks()
+    }
+
+    private fun showDeleteConfirmationDialog(task: Task) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Task")
+            .setMessage("Are you sure you want to delete this task?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (databaseHelper.deleteTask(task.id)) {
+                    Toast.makeText(requireContext(), "Task deleted", Toast.LENGTH_SHORT).show()
+                    refreshTasks()
+                } else {
+                    Toast.makeText(requireContext(), "Failed to delete task", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     companion object {
