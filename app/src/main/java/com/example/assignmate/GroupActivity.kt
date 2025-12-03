@@ -71,6 +71,10 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
             },
             onDeleteClicked = { group ->
                 showDeleteGroupConfirmationDialog(group)
+            },
+            onAddToFavouriteClicked = { group ->
+                databaseHelper.setFavouriteGroup(currentUserId, group.id)
+                Toast.makeText(this, "\"${group.name}\" has been set as your favourite group", Toast.LENGTH_SHORT).show()
             }
         )
         binding.groupsRecyclerView.apply {

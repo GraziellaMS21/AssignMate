@@ -42,13 +42,8 @@ class RegisterActivity : AppCompatActivity() {
             }
 
             if (databaseHelper.addUser(username, email, password)) {
-                Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
-                
-                // FIX: Get the ID of the newly created user to pass to the main activity
-                val newUserId = databaseHelper.getUserId(email)
-
-                val intent = Intent(this, MainActivity::class.java)
-                intent.putExtra("USER_ID", newUserId) // Pass the correct ID
+                Toast.makeText(this, "Registration successful! Please log in.", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this, LoginActivity::class.java)
                 startActivity(intent)
                 finish()
             } else {

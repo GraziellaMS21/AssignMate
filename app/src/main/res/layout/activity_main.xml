@@ -1,41 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#fff1e8 "
+    android:background="#fff1e8"
     tools:context=".MainActivity">
 
-    <LinearLayout
-        android:id="@+id/header"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp">
+        android:background="#fff1e8">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:text="AssignMate"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Title"
+                    android:textColor="#262224" />
+
+                <ImageView
+                    android:id="@+id/notification_bell"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="16dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:src="@drawable/ic_notifications"
+                    app:tint="#262224" />
+
+                <TextView
+                    android:id="@+id/notification_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignTop="@id/notification_bell"
+                    android:layout_alignEnd="@id/notification_bell"
+                    android:background="@drawable/notification_badge"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
+            </RelativeLayout>
+
+        </com.google.android.material.appbar.MaterialToolbar>
 
         <TextView
-            android:layout_width="0dp"
+            android:id="@+id/welcome_message"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/app_name"
-            android:textAppearance="@style/TextAppearance.AppCompat.Large"
-            android:textColor="#000000" />
+            android:paddingStart="16dp"
+            android:paddingBottom="16dp"
+            android:text="Welcome back, User!"
+            android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
-        <ImageView
-            android:id="@+id/notification_bell"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_notifications" />
+    </com.google.android.material.appbar.AppBarLayout>
 
-    </LinearLayout>
-
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@id/bottom_navigation"
-        android:layout_below="@id/header">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -43,18 +81,9 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <TextView
-                android:id="@+id/welcome_message"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Welcome back, [User]!"
-                android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                android:textColor="#000000" />
-
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
                 android:columnCount="2"
                 android:rowCount="2">
 
@@ -62,28 +91,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
-                    android:layout_margin="8dp">
+                    android:layout_margin="8dp"
+                    app:cardElevation="4dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#FFFFFF"
+                        android:gravity="center"
                         android:orientation="vertical"
                         android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Total Groups Joined"
-                            android:textColor="#000000" />
+                            android:text="Total Groups" />
 
                         <TextView
                             android:id="@+id/total_groups"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                            android:textColor="#000000" />
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -91,28 +119,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
-                    android:layout_margin="8dp">
+                    android:layout_margin="8dp"
+                    app:cardElevation="4dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#FFFFFF"
-                        android:orientation="vertical"
+                        android:gravity="center"
+                        android.orientation="vertical"
                         android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Tasks Due This Week"
-                            android:textColor="#000000" />
+                            android:text="Total Tasks" />
 
                         <TextView
-                            android:id="@+id/tasks_due_week"
+                            android:id="@+id/total_tasks"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                            android:textColor="#000000" />
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -120,28 +147,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
-                    android:layout_margin="8dp">
+                    android:layout_margin="8dp"
+                    app:cardElevation="4dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#FFFFFF"
+                        android:gravity="center"
                         android:orientation="vertical"
                         android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Completed Tasks"
-                            android:textColor="#000000" />
+                            android:text="Pending Tasks" />
 
                         <TextView
-                            android:id="@+id/completed_tasks"
+                            android:id="@+id/pending_tasks"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                            android:textColor="#000000" />
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -149,28 +175,27 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
-                    android:layout_margin="8dp">
+                    android:layout_margin="8dp"
+                    app:cardElevation="4dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#FFFFFF"
+                        android:gravity="center"
                         android:orientation="vertical"
                         android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Overdue Tasks"
-                            android:textColor="#000000" />
+                            android:text="Due Tasks" />
 
                         <TextView
-                            android:id="@+id/overdue_tasks"
+                            android:id="@+id/due_tasks"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                            android:textColor="#000000" />
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -180,24 +205,67 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Upcoming Tasks"
-                android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+                android:text="Favourite Group"
+                android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/upcoming_tasks_list"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/favourite_group_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/favourite_group_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Title" />
+
+                    <TextView
+                        android:id="@+id/favourite_group_description"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/no_favourite_group_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="No favourite group selected." />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Upcoming Deadlines"
+                android:textAppearance="@style/TextAppearance.AppCompat.Title" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/upcoming_deadlines_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:listitem="@layout/item_upcoming_task" />
 
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#FFFFFF"
+        android:layout_gravity="bottom"
         app:menu="@menu/bottom_navigation_menu" />
 
-</RelativeLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -8,5 +8,7 @@ data class Group(
     val leader: String,
     val members: List<String>,
     val lastUpdated: Long,
-    val progress: Int
+    val progress: Int,
+    val pendingTaskCount: Int,
+    val isFavourite: Boolean = false
 )

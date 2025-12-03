@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/task_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Task Name"
+        android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
+
+    <TextView
+        android:id="@+id/group_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Group Name"
+        android:textAppearance="@style/TextAppearance.AppCompat.Caption" />
+
+    <TextView
+        android:id="@+id/due_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:text="Due Date"
+        android:textAppearance="@style/TextAppearance.AppCompat.Caption" />
+
+</LinearLayout>

@@ -28,6 +28,7 @@
         <activity android:name=".SingleGroupActivity" />
         <activity android:name=".ProfileActivity" />
         <activity android:name=".TaskDetailActivity" />
+        <activity android:name=".NotificationsActivity" />
     </application>
 
 </manifest>

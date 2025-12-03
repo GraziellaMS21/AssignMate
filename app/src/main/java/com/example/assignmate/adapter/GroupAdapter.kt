@@ -15,7 +15,8 @@ class GroupAdapter(
     private val groups: List<Group>,
     private val onGroupClicked: (Group) -> Unit,
     private val onEditClicked: (Group) -> Unit,
-    private val onDeleteClicked: (Group) -> Unit
+    private val onDeleteClicked: (Group) -> Unit,
+    private val onAddToFavouriteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
@@ -50,6 +51,10 @@ class GroupAdapter(
                 popup.menuInflater.inflate(R.menu.group_card_menu, popup.menu)
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
+                        R.id.action_add_to_favourite -> {
+                            onAddToFavouriteClicked(group)
+                            true
+                        }
                         R.id.action_edit_group -> {
                             onEditClicked(group)
                             true

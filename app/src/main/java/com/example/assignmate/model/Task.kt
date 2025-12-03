@@ -5,6 +5,7 @@ data class Task(
     val name: String,
     val description: String,
     val groupId: Long,
+    val groupName: String? = null,
     val dueDate: Long,
     val status: String,
     val assignedTo: List<Int>? = null

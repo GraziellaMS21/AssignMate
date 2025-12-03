@@ -14,13 +14,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.example.assignmate.adapter.UpcomingTasksAdapter
 import com.example.assignmate.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var databaseHelper: DatabaseHelper
+    private lateinit var notificationHelper: NotificationHelper
     private var currentUserId: Int = -1
+
+    companion object {
+        private var dummyNotificationSent = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,7 +35,21 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         databaseHelper = DatabaseHelper(this)
+        notificationHelper = NotificationHelper(this)
+        notificationHelper.createNotificationChannel()
+
         currentUserId = intent.getIntExtra("USER_ID", -1)
+
+        if (!dummyNotificationSent) {
+            notificationHelper.sendNotification(currentUserId, "Welcome!", "This is a dummy notification to test the system.", 0)
+            dummyNotificationSent = true
+        }
+
+        binding.notificationBell.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            intent.putExtra("USER_ID", currentUserId)
+            startActivity(intent)
+        }
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -73,6 +93,62 @@ class MainActivity : AppCompatActivity() {
 
         val groupCount = databaseHelper.getGroupsForUser(currentUserId).size
         binding.totalGroups.text = groupCount.toString()
+
+        val totalTasks = databaseHelper.getTotalTasksForUser(currentUserId)
+        binding.totalTasks.text = totalTasks.toString()
+
+        val pendingTasks = databaseHelper.getPendingTasksForUser(currentUserId)
+        binding.pendingTasks.text = pendingTasks.toString()
+
+        val dueTasks = databaseHelper.getDueTasksForUser(currentUserId)
+        binding.dueTasks.text = dueTasks.toString()
+
+        val upcomingTasks = databaseHelper.getUpcomingTasksForUser(currentUserId)
+        binding.upcomingDeadlinesRecyclerView.adapter = UpcomingTasksAdapter(upcomingTasks) { task ->
+            val intent = Intent(this, TaskDetailActivity::class.java)
+            intent.putExtra("TASK_ID", task.id)
+            intent.putExtra("USER_ID", currentUserId)
+            startActivity(intent)
+        }
+
+        updateFavouriteGroup()
+        updateNotificationBadge()
+    }
+
+    private fun updateNotificationBadge() {
+        val unreadCount = databaseHelper.getUnreadNotificationCount(currentUserId)
+        if (unreadCount > 0) {
+            binding.notificationBadge.visibility = View.VISIBLE
+            binding.notificationBadge.text = unreadCount.toString()
+        } else {
+            binding.notificationBadge.visibility = View.GONE
+        }
+    }
+
+    private fun updateFavouriteGroup() {
+        val favouriteGroupId = databaseHelper.getFavouriteGroup(currentUserId)
+        if (favouriteGroupId != -1L) {
+            val favouriteGroup = databaseHelper.getGroupsForUser(currentUserId).find { it.id == favouriteGroupId }
+            if (favouriteGroup != null) {
+                binding.favouriteGroupCard.visibility = View.VISIBLE
+                binding.noFavouriteGroupText.visibility = View.GONE
+                binding.favouriteGroupName.text = favouriteGroup.name
+                binding.favouriteGroupDescription.text = favouriteGroup.description
+
+                binding.favouriteGroupCard.setOnClickListener {
+                    val intent = Intent(this, SingleGroupActivity::class.java)
+                    intent.putExtra("GROUP_ID", favouriteGroup.id)
+                    intent.putExtra("USER_ID", currentUserId)
+                    startActivity(intent)
+                }
+            } else {
+                binding.favouriteGroupCard.visibility = View.GONE
+                binding.noFavouriteGroupText.visibility = View.VISIBLE
+            }
+        } else {
+            binding.favouriteGroupCard.visibility = View.GONE
+            binding.noFavouriteGroupText.visibility = View.VISIBLE
+        }
     }
 
     private fun showCreateGroupDialog() {
@@ -122,6 +198,7 @@ class MainActivity : AppCompatActivity() {
                 val newGroupId = databaseHelper.createGroup(groupName, groupDescription, currentUserId, groupCode)
                 if (newGroupId != -1L) {
                     Toast.makeText(this, "Group created successfully", Toast.LENGTH_SHORT).show()
+                    notificationHelper.sendNotification(currentUserId, "New Group", "You have created a new group: $groupName", newGroupId.toInt())
                     val intent = Intent(this, SingleGroupActivity::class.java)
                     intent.putExtra("GROUP_ID", newGroupId)
                     intent.putExtra("USER_ID", currentUserId)
@@ -161,6 +238,7 @@ class MainActivity : AppCompatActivity() {
                 if (groupId != -1L) {
                     if (databaseHelper.joinGroup(currentUserId, groupCode)) {
                         Toast.makeText(this, "Group Joined Successfully", Toast.LENGTH_SHORT).show()
+                        notificationHelper.sendNotification(currentUserId, "Joined Group", "You have joined a new group.", groupId.toInt())
                         val intent = Intent(this, SingleGroupActivity::class.java)
                         intent.putExtra("GROUP_ID", groupId)
                         intent.putExtra("USER_ID", currentUserId)

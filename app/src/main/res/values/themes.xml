@@ -10,6 +10,11 @@
 
     <style name="Theme.AssignMate" parent="Base.Theme.AssignMate" />
 
+    <style name="ThemeOverlay.App.Toolbar" parent="">
+        <item name="colorControlNormal">#262224</item>
+        <item name="android:textColorSecondary">#262224</item>
+    </style>
+
     <style name="Widget.App.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
         <item name="boxStrokeColor">#262224</item>
         <item name="hintTextColor">#262224</item>

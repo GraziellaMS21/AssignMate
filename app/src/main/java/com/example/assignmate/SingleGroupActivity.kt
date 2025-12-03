@@ -20,6 +20,7 @@ class SingleGroupActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySingleGroupBinding
     private lateinit var databaseHelper: DatabaseHelper
+    private lateinit var notificationHelper: NotificationHelper
     private var groupId: Long = -1
     private var currentUserId: Int = -1
     private lateinit var viewPagerAdapter: ViewPagerAdapter
@@ -30,6 +31,7 @@ class SingleGroupActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         databaseHelper = DatabaseHelper(this)
+        notificationHelper = NotificationHelper(this)
         groupId = intent.getLongExtra("GROUP_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
         val groupName = intent.getStringExtra("GROUP_NAME")
@@ -78,6 +80,7 @@ class SingleGroupActivity : AppCompatActivity() {
                 if (newMemberId != -1) {
                     if (databaseHelper.addMemberToGroup(newMemberId, groupId)) {
                         Toast.makeText(this, "Member added successfully", Toast.LENGTH_SHORT).show()
+                        notificationHelper.sendNotification(newMemberId, "New Group Member", "You have been added to a new group.", groupId.toInt())
                     } else {
                         Toast.makeText(this, "Member is already in the group", Toast.LENGTH_SHORT).show()
                     }
@@ -156,8 +159,10 @@ class SingleGroupActivity : AppCompatActivity() {
 
                 val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, dueDateMillis)
                 if (newTaskId != -1L) {
+                    notificationHelper.sendNotification(currentUserId, "New Task", "A new task has been created: $taskName", newTaskId.toInt())
                     assignedTo.forEach { 
-                        databaseHelper.assignTaskToUser(newTaskId, it) 
+                        databaseHelper.assignTaskToUser(newTaskId, it)
+                        notificationHelper.sendNotification(it, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
                     }
                     Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
                     (viewPagerAdapter.getFragment(0) as? GroupTasksFragment)?.refreshTasks()

@@ -5,4 +5,7 @@
     <color name="status_not_started">#D32F2F</color>
     <color name="status_in_progress">#FBC02D</color>
     <color name="status_complete">#388E3C</color>
+    <color name="progress_low">#D32F2F</color>
+    <color name="progress_medium">#FBC02D</color>
+    <color name="progress_high">#388E3C</color>
 </resources>

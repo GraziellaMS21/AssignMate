@@ -25,6 +25,7 @@ class TaskDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityTaskDetailBinding
     private lateinit var databaseHelper: DatabaseHelper
+    private lateinit var notificationHelper: NotificationHelper
     private var taskId: Long = -1
     private var currentUserId: Int = -1
     private var groupLeaderId: Int = -1
@@ -37,6 +38,7 @@ class TaskDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         databaseHelper = DatabaseHelper(this)
+        notificationHelper = NotificationHelper(this)
         taskId = intent.getLongExtra("TASK_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
 
@@ -66,8 +68,13 @@ class TaskDetailActivity : AppCompatActivity() {
         binding.taskDescriptionInput.setText(task!!.description)
 
         val statusAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, arrayOf("Not Started", "In progress", "Complete"))
-        (binding.statusDropdown as? AutoCompleteTextView)?.setAdapter(statusAdapter)
-        updateStatus(task!!.status)
+        binding.statusDropdown.setAdapter(statusAdapter)
+        binding.statusDropdown.setText(task!!.status, false)
+        setStatusColor(task!!.status)
+
+        if (!isAssigned) {
+            binding.statusDropdown.isEnabled = false
+        }
 
         binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(task!!.dueDate))
 
@@ -87,6 +94,13 @@ class TaskDetailActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.taskTitleInput.addTextChangedListener(textWatcher)
         binding.taskDescriptionInput.addTextChangedListener(textWatcher)
+
+        binding.statusDropdown.setOnItemClickListener { _, _, position, _ ->
+            val newStatus = (binding.statusDropdown.adapter.getItem(position)) as String
+            task = task?.copy(status = newStatus)
+            setStatusColor(newStatus)
+            binding.saveChangesButton.isEnabled = true
+        }
 
         binding.dueDateInput.setOnClickListener {
             if (currentUserId == groupLeaderId) {
@@ -183,7 +197,13 @@ class TaskDetailActivity : AppCompatActivity() {
         calendar.set(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
         val newDueDateMillis = calendar.timeInMillis
 
-        databaseHelper.updateTask(taskId, newTitle, newDescription, newDueDateMillis, task!!.assignedTo)
+        databaseHelper.updateTask(taskId, newTitle, newDescription, newDueDateMillis, task!!.status, task!!.assignedTo)
+
+        task!!.assignedTo?.forEach { userId ->
+            if (userId != currentUserId) {
+                notificationHelper.sendNotification(userId, "New Task Assignment", "You have been assigned to the task \"${task!!.name}\".", taskId.toInt())
+            }
+        }
 
         Toast.makeText(this, "Changes saved", Toast.LENGTH_SHORT).show()
         val intent = Intent(this, SingleGroupActivity::class.java)
@@ -236,19 +256,13 @@ class TaskDetailActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun updateStatus(status: String) {
-        if (databaseHelper.updateTaskStatus(taskId, status)) {
-            binding.statusDropdown.setText(status, false)
-            val statusColor = when (status) {
-                "Not Started" -> R.color.status_not_started
-                "In progress" -> R.color.status_in_progress
-                "Complete" -> R.color.status_complete
-                else -> android.R.color.black
-            }
-            binding.statusDropdown.setTextColor(ContextCompat.getColor(this, statusColor))
-            Toast.makeText(this, "Task status updated", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(this, "Failed to update status", Toast.LENGTH_SHORT).show()
+    private fun setStatusColor(status: String) {
+        val colorRes = when (status) {
+            "Not Started" -> R.color.status_not_started
+            "In progress" -> R.color.status_in_progress
+            "Complete" -> R.color.status_complete
+            else -> android.R.color.black
         }
+        binding.statusDropdown.setTextColor(ContextCompat.getColor(this, colorRes))
     }
 }
