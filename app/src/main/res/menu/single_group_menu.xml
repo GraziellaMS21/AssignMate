@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_add_to_favourite"
+        android:title="Add to Favorite" />
+    <item
+        android:id="@+id/action_edit_group"
+        android:title="Edit Group" />
+    <item
+        android:id="@+id/action_delete_group"
+        android:title="Delete Group" />
+    <item
+        android:id="@+id/action_manage_labels"
+        android:title="Manage Labels" />
+    <item
+        android:id="@+id/action_add_members"
+        android:title="Add Members" />
+</menu>

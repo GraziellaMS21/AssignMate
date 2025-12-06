@@ -1,7 +1,12 @@
 package com.example.assignmate
 
 import android.app.DatePickerDialog
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
 import android.widget.Toast
@@ -9,11 +14,16 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
+import com.example.assignmate.adapter.ManageLabelsAdapter
 import com.example.assignmate.databinding.ActivitySingleGroupBinding
+import com.example.assignmate.model.Label
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.tabs.TabLayoutMediator
+import yuku.ambilwarna.AmbilWarnaDialog
 import java.util.Calendar
 
 class SingleGroupActivity : AppCompatActivity() {
@@ -24,6 +34,7 @@ class SingleGroupActivity : AppCompatActivity() {
     private var groupId: Long = -1
     private var currentUserId: Int = -1
     private lateinit var viewPagerAdapter: ViewPagerAdapter
+    private var defaultColor: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,15 +46,10 @@ class SingleGroupActivity : AppCompatActivity() {
         groupId = intent.getLongExtra("GROUP_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
         val groupName = intent.getStringExtra("GROUP_NAME")
-        binding.groupNameHeader.text = groupName
 
-        binding.backButton.setOnClickListener {
-            finish()
-        }
-
-        binding.addMemberButton.setOnClickListener {
-            showAddMemberDialog()
-        }
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = groupName
 
         if (databaseHelper.getGroupLeaderId(groupId) == currentUserId) {
             binding.fabAddTask.visibility = View.VISIBLE
@@ -65,16 +71,177 @@ class SingleGroupActivity : AppCompatActivity() {
         }.attach()
     }
 
-    private fun showAddMemberDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Add Member")
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.single_group_menu, menu)
+        return true
+    }
 
-        val input = EditText(this)
-        input.hint = "Enter user email"
-        builder.setView(input)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            android.R.id.home -> finish()
+            R.id.action_add_to_favourite -> addToFavourite()
+            R.id.action_edit_group -> showEditGroupDialog()
+            R.id.action_delete_group -> showDeleteGroupDialog()
+            R.id.action_manage_labels -> showManageLabelsDialog()
+            R.id.action_add_members -> showAddMembersDialog()
+            else -> return super.onOptionsItemSelected(item)
+        }
+        return true
+    }
+
+    private fun addToFavourite() {
+        databaseHelper.setFavouriteGroup(currentUserId, groupId)
+        Toast.makeText(this, "Group added to favorites", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showEditGroupDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Edit Group")
+
+        val view = layoutInflater.inflate(R.layout.dialog_create_group, null)
+        builder.setView(view)
+
+        val groupNameInput = view.findViewById<EditText>(R.id.group_name_input)
+        val groupDescriptionInput = view.findViewById<EditText>(R.id.group_description_input)
+
+        val group = databaseHelper.getGroup(groupId)
+        groupNameInput.setText(group?.name)
+        groupDescriptionInput.setText(group?.description)
+
+        builder.setPositiveButton("Save") { dialog, _ ->
+            val newGroupName = groupNameInput.text.toString()
+            val newGroupDescription = groupDescriptionInput.text.toString()
+            if (newGroupName.isNotEmpty() && newGroupDescription.isNotEmpty()) {
+                if (databaseHelper.updateGroup(groupId, newGroupName, newGroupDescription)) {
+                    Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show()
+                    supportActionBar?.title = newGroupName
+                } else {
+                    Toast.makeText(this, "Failed to update group", Toast.LENGTH_SHORT).show()
+                }
+            }
+            dialog.dismiss()
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+
+        builder.show()
+    }
+
+    private fun showDeleteGroupDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Group")
+            .setMessage("Are you sure you want to delete this group?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (databaseHelper.deleteGroup(groupId)) {
+                    Toast.makeText(this, "Group deleted successfully", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this, "Failed to delete group", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showManageLabelsDialog() {
+        val builder = AlertDialog.Builder(this)
+        val view = layoutInflater.inflate(R.layout.dialog_manage_labels, null)
+        builder.setView(view)
+
+        val labelsRecyclerView = view.findViewById<RecyclerView>(R.id.labels_recycler_view)
+        val createNewLabelButton = view.findViewById<View>(R.id.create_new_label_button)
+
+        val labels = databaseHelper.getAllLabels().toMutableList()
+        val adapter = ManageLabelsAdapter(labels) { label ->
+            showEditLabelDialog(label) { updatedLabel ->
+                (labelsRecyclerView.adapter as ManageLabelsAdapter).updateLabel(updatedLabel)
+            }
+        }
+        labelsRecyclerView.layoutManager = LinearLayoutManager(this)
+        labelsRecyclerView.adapter = adapter
+
+        createNewLabelButton.setOnClickListener {
+            showEditLabelDialog(null) { newLabel ->
+                (labelsRecyclerView.adapter as ManageLabelsAdapter).addLabel(newLabel)
+            }
+        }
+
+        builder.setPositiveButton("Done", null)
+        builder.show()
+    }
+
+    private fun showEditLabelDialog(label: Label?, onLabelUpdated: (Label) -> Unit) {
+        val builder = AlertDialog.Builder(this)
+        val view = layoutInflater.inflate(R.layout.dialog_add_label, null)
+        builder.setView(view)
+
+        val labelNameInput = view.findViewById<EditText>(R.id.label_name_input)
+        val colorPicker = view.findViewById<View>(R.id.color_picker)
+
+        if (label != null) {
+            labelNameInput.setText(label.name)
+            defaultColor = android.graphics.Color.parseColor(label.color)
+            colorPicker?.setBackgroundColor(defaultColor)
+        }
+
+        colorPicker?.setOnClickListener {
+            val colorPickerDialog = AmbilWarnaDialog(this, defaultColor, object : AmbilWarnaDialog.OnAmbilWarnaListener {
+                override fun onCancel(dialog: AmbilWarnaDialog?) {}
+                override fun onOk(dialog: AmbilWarnaDialog?, color: Int) {
+                    defaultColor = color
+                    colorPicker?.setBackgroundColor(color)
+                }
+            })
+            colorPickerDialog.show()
+        }
+
+        builder.setPositiveButton(if (label == null) "Create" else "Save") { _, _ ->
+            val labelName = labelNameInput.text.toString()
+            val labelColor = String.format("#%06X", 0xFFFFFF and defaultColor)
+
+            if (labelName.isNotEmpty()) {
+                if (label == null) {
+                    val newLabelId = databaseHelper.addLabel(labelName, labelColor)
+                    if (newLabelId != -1L) {
+                        onLabelUpdated(Label(newLabelId, labelName, labelColor))
+                    } else {
+                        Toast.makeText(this, "Failed to create label", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    if (databaseHelper.updateLabel(label.id, labelName, labelColor)) {
+                        onLabelUpdated(Label(label.id, labelName, labelColor))
+                    } else {
+                        Toast.makeText(this, "Failed to update label", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Please enter a label name", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        builder.setNegativeButton("Cancel", null)
+        builder.show()
+    }
+
+    private fun showAddMembersDialog() {
+        val builder = AlertDialog.Builder(this)
+        val view = layoutInflater.inflate(R.layout.dialog_add_member, null)
+        builder.setView(view)
+
+        val groupCode = databaseHelper.getGroup(groupId)?.code
+        val groupCodeText = view.findViewById<android.widget.TextView>(R.id.group_code_text)
+        groupCodeText.text = "Group Code: $groupCode"
+
+        view.findViewById<View>(R.id.copy_icon).setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Group Code", groupCode)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "Group code copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        val emailInput = view.findViewById<EditText>(R.id.email_input)
 
         builder.setPositiveButton("Add") { dialog, _ ->
-            val email = input.text.toString()
+            val email = emailInput.text.toString()
             if (email.isNotEmpty()) {
                 val newMemberId = databaseHelper.getUserId(email)
                 if (newMemberId != -1) {

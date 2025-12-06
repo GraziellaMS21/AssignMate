@@ -10,5 +10,6 @@ data class Group(
     val lastUpdated: Long,
     val progress: Int,
     val pendingTaskCount: Int,
+    val assignedTasksCount: Int,
     val isFavourite: Boolean = false
 )

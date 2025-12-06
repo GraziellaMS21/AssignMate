@@ -36,8 +36,7 @@ class GroupAdapter(
             binding.groupName.text = group.name
             binding.groupLeader.text = "Group Leader: ${group.leader}"
             binding.groupMembers.text = "Members: ${group.members.size}"
-            // TODO: Implement assigned tasks count
-            binding.assignedTasks.text = "Assigned Tasks: 0"
+            binding.assignedTasks.text = "Assigned Tasks: ${group.assignedTasksCount}"
             binding.groupDescription.text = group.description
             binding.lastUpdated.text = "Last updated: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(group.lastUpdated))}"
             binding.groupProgress.progress = group.progress

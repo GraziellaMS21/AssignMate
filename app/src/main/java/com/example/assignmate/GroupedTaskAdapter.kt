@@ -1,5 +1,6 @@
 package com.example.assignmate
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,7 +11,7 @@ import com.example.assignmate.model.Task
 private const val VIEW_TYPE_GROUP = 0
 private const val VIEW_TYPE_TASK = 1
 
-class GroupedTaskAdapter(private val tasksByGroup: Map<String, List<Task>>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class GroupedTaskAdapter(private val tasksByGroup: Map<String, List<Task>>, private val currentUserId: Int) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<Any>()
 
@@ -56,13 +57,22 @@ class GroupedTaskAdapter(private val tasksByGroup: Map<String, List<Task>>) : Re
         }
     }
 
-    class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val taskNameTextView: TextView = itemView.findViewById(R.id.task_name)
         private val taskStatusTextView: TextView = itemView.findViewById(R.id.status)
 
         fun bind(task: Task) {
             taskNameTextView.text = task.name
             taskStatusTextView.text = "Status: ${task.status}"
+
+            itemView.setOnClickListener {
+                val context = itemView.context
+                val intent = Intent(context, TaskDetailActivity::class.java).apply {
+                    putExtra("TASK_ID", task.id)
+                    putExtra("USER_ID", currentUserId)
+                }
+                context.startActivity(intent)
+            }
         }
     }
 }

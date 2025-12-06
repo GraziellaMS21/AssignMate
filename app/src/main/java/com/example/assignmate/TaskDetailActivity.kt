@@ -7,16 +7,24 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.assignmate.adapter.CommentAdapter
+import com.example.assignmate.adapter.LabelAdapter
+import com.example.assignmate.adapter.SubtaskAdapter
 import com.example.assignmate.databinding.ActivityTaskDetailBinding
+import com.example.assignmate.model.Label
+import com.example.assignmate.model.Subtask
 import com.example.assignmate.model.Task
 import com.google.android.material.chip.Chip
+import yuku.ambilwarna.AmbilWarnaDialog
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -31,6 +39,8 @@ class TaskDetailActivity : AppCompatActivity() {
     private var groupLeaderId: Int = -1
     private var isAssigned: Boolean = false
     private var task: Task? = null
+    private var defaultColor: Int = 0
+    private var saveMenuItem: MenuItem? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,11 +60,14 @@ class TaskDetailActivity : AppCompatActivity() {
 
         groupLeaderId = databaseHelper.getGroupLeaderId(task!!.groupId)
         isAssigned = task!!.assignedTo?.contains(currentUserId) == true
+        defaultColor = ContextCompat.getColor(this, R.color.purple_200)
 
         setupToolbar()
         setupViews()
         setupListeners()
         loadComments()
+        loadLabels()
+        loadSubtasks()
     }
 
     private fun setupToolbar() {
@@ -99,7 +112,13 @@ class TaskDetailActivity : AppCompatActivity() {
             val newStatus = (binding.statusDropdown.adapter.getItem(position)) as String
             task = task?.copy(status = newStatus)
             setStatusColor(newStatus)
-            binding.saveChangesButton.isEnabled = true
+            saveMenuItem?.isVisible = true
+
+            task!!.assignedTo?.forEach { userId ->
+                if (userId != currentUserId) {
+                    notificationHelper.sendNotification(userId, "Task Status Updated", "The status of task \"${task!!.name}\" has been updated to $newStatus.", taskId.toInt())
+                }
+            }
         }
 
         binding.dueDateInput.setOnClickListener {
@@ -114,6 +133,14 @@ class TaskDetailActivity : AppCompatActivity() {
             }
         }
 
+        binding.addLabelButton.setOnClickListener {
+            showAddLabelDialog()
+        }
+
+        binding.addSubtaskButton.setOnClickListener {
+            showAddSubtaskDialog()
+        }
+
         binding.addCommentButton.setOnClickListener {
             val commentText = binding.commentInput.text.toString()
             if (commentText.isNotEmpty()) {
@@ -121,21 +148,23 @@ class TaskDetailActivity : AppCompatActivity() {
                 if (newCommentId != -1L) {
                     loadComments()
                     binding.commentInput.text.clear()
+
+                    task!!.assignedTo?.forEach { userId ->
+                        if (userId != currentUserId) {
+                            notificationHelper.sendNotification(userId, "New Comment on Task", "A new comment has been added to the task \"${task!!.name}\".", taskId.toInt())
+                        }
+                    }
                 } else {
                     Toast.makeText(this, "Failed to add comment", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-
-        binding.saveChangesButton.setOnClickListener {
-            saveChanges()
         }
     }
 
     private val textWatcher = object : TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            binding.saveChangesButton.isEnabled = true
+            saveMenuItem?.isVisible = true
         }
         override fun afterTextChanged(s: Editable?) {}
     }
@@ -150,7 +179,7 @@ class TaskDetailActivity : AppCompatActivity() {
             _, selectedYear, selectedMonth, selectedDay ->
             val newDueDate = "$selectedDay/${selectedMonth + 1}/$selectedYear"
             binding.dueDateInput.setText(newDueDate)
-            binding.saveChangesButton.isEnabled = true
+            saveMenuItem?.isVisible = true
         }, year, month, day)
         datePickerDialog.show()
     }
@@ -176,10 +205,59 @@ class TaskDetailActivity : AppCompatActivity() {
                 }
                 task = task!!.copy(assignedTo = newAssignedTo)
                 updateAssignedMembersChips()
-                binding.saveChangesButton.isEnabled = true
+                saveMenuItem?.isVisible = true
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun showAddLabelDialog() {
+        val allLabels = databaseHelper.getAllLabels()
+        val assignedLabels = databaseHelper.getLabelsForTask(taskId)
+        val unassignedLabels = allLabels.filter { it !in assignedLabels }
+
+        if (unassignedLabels.isEmpty()) {
+            Toast.makeText(this, "No unassigned labels available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val labelNames = unassignedLabels.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Add Label")
+            .setItems(labelNames) { _, which ->
+                val selectedLabel = unassignedLabels[which]
+                databaseHelper.addTaskLabel(taskId, selectedLabel.id)
+                loadLabels()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showAddSubtaskDialog() {
+        val builder = AlertDialog.Builder(this)
+        val view = layoutInflater.inflate(R.layout.dialog_add_subtask, null)
+        builder.setView(view)
+
+        val subtaskNameInput = view.findViewById<EditText>(R.id.subtask_name_input)
+
+        builder.setPositiveButton("Add") { _, _ ->
+            val subtaskName = subtaskNameInput.text.toString()
+
+            if (subtaskName.isNotEmpty()) {
+                val newSubtaskId = databaseHelper.createSubtask(taskId, subtaskName)
+                if (newSubtaskId != -1L) {
+                    loadSubtasks()
+                } else {
+                    Toast.makeText(this, "Failed to add subtask", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Please enter a subtask name", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        builder.setNegativeButton("Cancel", null)
+        builder.show()
     }
 
     private fun saveChanges() {
@@ -219,10 +297,23 @@ class TaskDetailActivity : AppCompatActivity() {
         binding.commentsRecyclerView.adapter = CommentAdapter(comments)
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        if (isAssigned || currentUserId == groupLeaderId) {
-            menuInflater.inflate(R.menu.task_detail_menu, menu)
+    private fun loadLabels() {
+        val labels = databaseHelper.getLabelsForTask(taskId)
+        binding.labelsRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.labelsRecyclerView.adapter = LabelAdapter(labels)
+    }
+
+    private fun loadSubtasks() {
+        val subtasks = databaseHelper.getSubtasksForTask(taskId)
+        binding.subtasksRecyclerView.adapter = SubtaskAdapter(subtasks) { subtask, isChecked ->
+            databaseHelper.updateSubtaskStatus(subtask.id, isChecked)
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.task_detail_menu, menu)
+        saveMenuItem = menu?.findItem(R.id.action_save_task)
+        saveMenuItem?.isVisible = false
         return true
     }
 
@@ -230,6 +321,10 @@ class TaskDetailActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> {
                 finish()
+                true
+            }
+            R.id.action_save_task -> {
+                saveChanges()
                 true
             }
             R.id.action_delete_task -> {
