@@ -147,7 +147,7 @@ class TaskDetailActivity : AppCompatActivity() {
                 val newCommentId = databaseHelper.addComment(taskId, currentUserId, commentText)
                 if (newCommentId != -1L) {
                     loadComments()
-                    binding.commentInput.text.clear()
+                    binding.commentInput.text?.clear()
 
                     task!!.assignedTo?.forEach { userId ->
                         if (userId != currentUserId) {
@@ -319,36 +319,12 @@ class TaskDetailActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                true
-            }
             R.id.action_save_task -> {
                 saveChanges()
                 true
             }
-            R.id.action_delete_task -> {
-                showDeleteConfirmationDialog()
-                true
-            }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-
-    private fun showDeleteConfirmationDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Task")
-            .setMessage("Are you sure you want to delete this task?")
-            .setPositiveButton("Delete") { _, _ ->
-                if (databaseHelper.deleteTask(taskId)) {
-                    Toast.makeText(this, "Task deleted", Toast.LENGTH_SHORT).show()
-                    finish()
-                } else {
-                    Toast.makeText(this, "Failed to delete task", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     private fun setStatusColor(status: String) {

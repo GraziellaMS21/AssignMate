@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="#FFFFFF"
@@ -10,6 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Join a Group"
+        android:textColor="#2C2A28"
         android:textSize="20sp"
         android:textStyle="bold" />
 
@@ -17,7 +19,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Enter Group Code">
+        android:hint="Enter Group Code"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/group_code_input"
@@ -31,7 +35,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Create a group instead?"
-        android:textColor="#FF5722"
+        android:textColor="#F28A30"
         android:textStyle="bold" />
 
 </LinearLayout>

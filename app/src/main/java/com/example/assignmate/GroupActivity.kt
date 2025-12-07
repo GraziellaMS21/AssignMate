@@ -11,6 +11,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -50,15 +51,34 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
         bottomNavigationView.selectedItemId = R.id.action_groups
         bottomNavigationView.setOnNavigationItemSelectedListener(this)
+
+        val notificationBell = findViewById<ImageView>(R.id.notification_bell)
+        notificationBell.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            intent.putExtra("USER_ID", currentUserId)
+            startActivity(intent)
+        }
     }
 
     override fun onResume() {
         super.onResume()
         loadGroups()
+        updateNotificationBadge()
+    }
+
+    private fun updateNotificationBadge() {
+        val notificationBadge = findViewById<TextView>(R.id.notification_badge)
+        val unreadCount = databaseHelper.getUnreadNotificationCount(currentUserId)
+        if (unreadCount > 0) {
+            notificationBadge.visibility = View.VISIBLE
+            notificationBadge.text = unreadCount.toString()
+        } else {
+            notificationBadge.visibility = View.GONE
+        }
     }
 
     private fun setupRecyclerView() {
-        groupAdapter = GroupAdapter(groups,
+        groupAdapter = GroupAdapter(groups, currentUserId,
             onGroupClicked = { group ->
                 val intent = Intent(this, SingleGroupActivity::class.java)
                 intent.putExtra("GROUP_NAME", group.name)
@@ -72,9 +92,15 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
             onDeleteClicked = { group ->
                 showDeleteGroupConfirmationDialog(group)
             },
-            onAddToFavouriteClicked = { group ->
-                databaseHelper.setFavouriteGroup(currentUserId, group.id)
-                Toast.makeText(this, "\"${group.name}\" has been set as your favourite group", Toast.LENGTH_SHORT).show()
+            onFavouriteClicked = { group ->
+                if (group.isFavourite) {
+                    databaseHelper.removeFavouriteGroup(currentUserId, group.id)
+                    Toast.makeText(this, "\"${group.name}\" removed from favourites", Toast.LENGTH_SHORT).show()
+                } else {
+                    databaseHelper.addFavouriteGroup(currentUserId, group.id)
+                    Toast.makeText(this, "\"${group.name}\" added to favourites", Toast.LENGTH_SHORT).show()
+                }
+                loadGroups()
             }
         )
         binding.groupsRecyclerView.apply {
@@ -122,12 +148,12 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (!s.isNullOrEmpty() && groupCodeText.text.contains("will appear")) {
+                if (!s.isNullOrEmpty()) {
                     val groupCode = generateGroupCode()
                     groupCodeText.text = "Group Code: $groupCode"
                     copyCodeButton.visibility = View.VISIBLE
                 } else if (s.isNullOrEmpty()) {
-                    groupCodeText.text = "Group Code will appear here"
+                    groupCodeText.text = "Group Code: "
                     copyCodeButton.visibility = View.GONE
                 }
             }

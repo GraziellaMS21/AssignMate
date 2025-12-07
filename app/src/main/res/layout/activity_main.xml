@@ -4,13 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#fff1e8"
+    android:background="#FFF8F0"
     tools:context=".MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#fff1e8">
+        android:background="#FFF8F0">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -21,13 +21,26 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerVertical="true"
-                    android:text="AssignMate"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Title"
-                    android:textColor="#262224" />
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Assign"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Title"
+                        android:textColor="#2C2A28" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mate"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Title"
+                        android:textColor="#6DBE45" />
+                </LinearLayout>
 
                 <ImageView
                     android:id="@+id/notification_bell"
@@ -40,20 +53,24 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:src="@drawable/ic_notifications"
-                    app:tint="#262224" />
+                    app:tint="#2C2A28" />
 
                 <TextView
                     android:id="@+id/notification_badge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_alignTop="@id/notification_bell"
                     android:layout_alignEnd="@id/notification_bell"
                     android:background="@drawable/notification_badge"
+                    android:backgroundTint="#E6544F"
+                    android:elevation="2dp"
                     android:gravity="center"
-                    android:padding="4dp"
-                    android:textColor="@android:color/white"
+                    android:textColor="#FFFFFF"
                     android:textSize="10sp"
-                    android:visibility="gone" />
+                    android:translationX="-8dp"
+                    android:translationY="4dp"
+                    android:visibility="gone"
+                    tools:text="3" />
 
             </RelativeLayout>
 
@@ -66,6 +83,7 @@
             android:paddingStart="16dp"
             android:paddingBottom="16dp"
             android:text="Welcome back, User!"
+            android:textColor="#2C2A28"
             android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -81,17 +99,20 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- GRID CARDS -->
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:columnCount="2"
                 android:rowCount="2">
 
+                <!-- Total Groups -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFFFFF"
                     app:cardElevation="4dp">
 
                     <LinearLayout
@@ -104,50 +125,26 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Total Groups" />
+                            android:text="Total Groups"
+                            android:textColor="#4F4B48" />
 
                         <TextView
                             android:id="@+id/total_groups"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+                            android:textColor="#2C2A28" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Total Tasks -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="8dp"
-                    app:cardElevation="4dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android.orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Total Tasks" />
-
-                        <TextView
-                            android:id="@+id/total_tasks"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFFFFF"
                     app:cardElevation="4dp">
 
                     <LinearLayout
@@ -160,6 +157,39 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:text="Total Tasks"
+                            android:textColor="#4F4B48" />
+
+                        <TextView
+                            android:id="@+id/total_tasks"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+                            android:textColor="#2C2A28" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Pending Tasks -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFBE57"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#2C2A28"
                             android:text="Pending Tasks" />
 
                         <TextView
@@ -167,15 +197,18 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
+                            android:textColor="#2C2A28"
                             android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Due Tasks -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFD8C2"
                     app:cardElevation="4dp">
 
                     <LinearLayout
@@ -188,6 +221,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:textColor="#2C2A28"
                             android:text="Due Tasks" />
 
                         <TextView
@@ -195,58 +229,43 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
+                            android:textColor="#E6544F"
                             android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
-
             </GridLayout>
 
+            <!-- Favourite Groups Title -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Favourite Group"
+                android:textColor="#2C2A28"
+                android:text="Favourite Groups"
                 android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/favourite_group_card"
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/favourite_groups_recycler_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:visibility="gone"
-                app:cardElevation="4dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/favourite_group_name"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Title" />
-
-                    <TextView
-                        android:id="@+id/favourite_group_description"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                tools:listitem="@layout/item_favourite_group" />
 
             <TextView
                 android:id="@+id/no_favourite_group_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="No favourite group selected." />
+                android:textColor="#4F4B48"
+                android:text="No favourite groups selected." />
 
+            <!-- Upcoming Deadlines -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:textColor="#2C2A28"
                 android:text="Upcoming Deadlines"
                 android:textAppearance="@style/TextAppearance.AppCompat.Title" />
 
@@ -255,8 +274,17 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:visibility="gone"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                 tools:listitem="@layout/item_upcoming_task" />
+
+            <TextView
+                android:id="@+id/no_upcoming_deadlines_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="#4F4B48"
+                android:text="No upcoming deadlines." />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -266,6 +294,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:background="#FFFFFF"
+        app:itemIconTint="@color/bottom_nav_colors"
+        app:itemTextColor="@color/bottom_nav_colors"
         app:menu="@menu/bottom_navigation_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="#FFFFFF"
@@ -10,34 +11,37 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Create a New Group"
+        android:textColor="#2C2A28"
         android:textSize="20sp"
         android:textStyle="bold" />
 
     <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Group Name">
+        android:hint="Group Name"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/group_name_input"
             android:layout_width="match_parent"
-            android:textColor="#262224"
+            android:textColor="#2C2A28"
             android:layout_height="wrap_content" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:hint="Group Description">
+        android:hint="Group Description"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/group_description_input"
             android:layout_width="match_parent"
-            android:textColor="#262224"
+            android:textColor="#2C2A28"
             android:layout_height="wrap_content" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -54,6 +58,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Group Code will appear here"
+            android:textColor="#4F4B48"
             android:textSize="16sp" />
 
         <ImageButton
@@ -63,6 +68,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Copy Group Code"
             android:src="@drawable/ic_copy"
+            app:tint="#AAA39A"
             android:visibility="gone" />
 
     </LinearLayout>
@@ -73,7 +79,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Join a group instead?"
-        android:textColor="#FF5722"
+        android:textColor="#F28A30"
         android:textStyle="bold" />
 
 </LinearLayout>

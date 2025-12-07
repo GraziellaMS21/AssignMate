@@ -14,6 +14,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.assignmate.adapter.FavouriteGroupAdapter
 import com.example.assignmate.adapter.UpcomingTasksAdapter
 import com.example.assignmate.databinding.ActivityMainBinding
 
@@ -23,10 +25,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var databaseHelper: DatabaseHelper
     private lateinit var notificationHelper: NotificationHelper
     private var currentUserId: Int = -1
-
-    companion object {
-        private var dummyNotificationSent = false
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,11 +37,6 @@ class MainActivity : AppCompatActivity() {
         notificationHelper.createNotificationChannel()
 
         currentUserId = intent.getIntExtra("USER_ID", -1)
-
-        if (!dummyNotificationSent) {
-            notificationHelper.sendNotification(currentUserId, "Welcome!", "This is a dummy notification to test the system.", 0)
-            dummyNotificationSent = true
-        }
 
         binding.notificationBell.setOnClickListener {
             val intent = Intent(this, NotificationsActivity::class.java)
@@ -104,14 +97,21 @@ class MainActivity : AppCompatActivity() {
         binding.dueTasks.text = dueTasks.toString()
 
         val upcomingTasks = databaseHelper.getUpcomingTasksForUser(currentUserId)
-        binding.upcomingDeadlinesRecyclerView.adapter = UpcomingTasksAdapter(upcomingTasks) { task ->
-            val intent = Intent(this, TaskDetailActivity::class.java)
-            intent.putExtra("TASK_ID", task.id)
-            intent.putExtra("USER_ID", currentUserId)
-            startActivity(intent)
+        if (upcomingTasks.isEmpty()) {
+            binding.upcomingDeadlinesRecyclerView.visibility = View.GONE
+            binding.noUpcomingDeadlinesText.visibility = View.VISIBLE
+        } else {
+            binding.upcomingDeadlinesRecyclerView.visibility = View.VISIBLE
+            binding.noUpcomingDeadlinesText.visibility = View.GONE
+            binding.upcomingDeadlinesRecyclerView.adapter = UpcomingTasksAdapter(upcomingTasks) { task ->
+                val intent = Intent(this, TaskDetailActivity::class.java)
+                intent.putExtra("TASK_ID", task.id)
+                intent.putExtra("USER_ID", currentUserId)
+                startActivity(intent)
+            }
         }
 
-        updateFavouriteGroup()
+        updateFavouriteGroups()
         updateNotificationBadge()
     }
 
@@ -125,29 +125,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateFavouriteGroup() {
-        val favouriteGroupId = databaseHelper.getFavouriteGroup(currentUserId)
-        if (favouriteGroupId != -1L) {
-            val favouriteGroup = databaseHelper.getGroupsForUser(currentUserId).find { it.id == favouriteGroupId }
-            if (favouriteGroup != null) {
-                binding.favouriteGroupCard.visibility = View.VISIBLE
-                binding.noFavouriteGroupText.visibility = View.GONE
-                binding.favouriteGroupName.text = favouriteGroup.name
-                binding.favouriteGroupDescription.text = favouriteGroup.description
-
-                binding.favouriteGroupCard.setOnClickListener {
-                    val intent = Intent(this, SingleGroupActivity::class.java)
-                    intent.putExtra("GROUP_ID", favouriteGroup.id)
-                    intent.putExtra("USER_ID", currentUserId)
-                    startActivity(intent)
-                }
-            } else {
-                binding.favouriteGroupCard.visibility = View.GONE
-                binding.noFavouriteGroupText.visibility = View.VISIBLE
-            }
-        } else {
-            binding.favouriteGroupCard.visibility = View.GONE
+    private fun updateFavouriteGroups() {
+        val favouriteGroups = databaseHelper.getFavouriteGroups(currentUserId)
+        if (favouriteGroups.isEmpty()) {
+            binding.favouriteGroupsRecyclerView.visibility = View.GONE
             binding.noFavouriteGroupText.visibility = View.VISIBLE
+        } else {
+            binding.favouriteGroupsRecyclerView.visibility = View.VISIBLE
+            binding.noFavouriteGroupText.visibility = View.GONE
+            binding.favouriteGroupsRecyclerView.layoutManager = LinearLayoutManager(this)
+            binding.favouriteGroupsRecyclerView.adapter = FavouriteGroupAdapter(favouriteGroups) { group ->
+                val intent = Intent(this, SingleGroupActivity::class.java)
+                intent.putExtra("GROUP_ID", group.id)
+                intent.putExtra("USER_ID", currentUserId)
+                startActivity(intent)
+            }
         }
     }
 

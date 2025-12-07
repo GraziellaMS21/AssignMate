@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FFF8F0"
     tools:context=".SingleGroupActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -21,9 +22,10 @@
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:backgroundTint="#FFFFFF"
+            android:background="#FFFFFF"
             app:tabGravity="fill"
-            app:tabIndicatorColor="#ee6e2c"
+            app:tabIndicatorColor="#4F8FB8"
+            app:tabTextColor="@color/tab_text_colors"
             app:tabMode="fixed" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -32,7 +34,6 @@
         android:id="@+id/view_pager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#fff1e8"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -43,7 +44,8 @@
         android:layout_margin="16dp"
         android:src="@drawable/ic_add"
         android:visibility="gone"
-        app:backgroundTint="#bebf91"
+        app:tint="#FFFFFF"
+        app:backgroundTint="#6DBE45"
         tools:visibility="visible" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

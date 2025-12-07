@@ -16,7 +16,7 @@ import java.util.Calendar
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_VERSION = 11
+        private const val DATABASE_VERSION = 12
         private const val DATABASE_NAME = "AssignMate.db"
 
         // User table
@@ -33,7 +33,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val KEY_GROUP_DESCRIPTION = "group_description"
         private const val KEY_GROUP_LEADER_ID = "group_leader_id"
         private const val KEY_GROUP_CODE = "group_code"
-        private const val KEY_IS_FAVOURITE = "is_favourite"
 
         // User-Group mapping table
         private const val TABLE_USER_GROUPS = "user_groups"
@@ -89,9 +88,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val KEY_NOTIFICATION_TIMESTAMP = "notification_timestamp"
         private const val KEY_NOTIFICATION_IS_READ = "notification_is_read"
 
-        // Favourite Group table
-        private const val TABLE_FAVOURITE_GROUP = "favourite_group"
-        private const val KEY_FAVOURITE_GROUP_ID = "favourite_group_id"
+        // Favourite Groups table
+        private const val TABLE_FAVOURITE_GROUPS = "favourite_groups"
     }
 
     override fun onOpen(db: SQLiteDatabase?) {
@@ -109,7 +107,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val createGroupsTable = ("CREATE TABLE " + TABLE_GROUPS + "("
                 + KEY_GROUP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," + KEY_GROUP_NAME + " TEXT,"
                 + KEY_GROUP_DESCRIPTION + " TEXT," + KEY_GROUP_LEADER_ID + " INTEGER,"
-                + KEY_GROUP_CODE + " TEXT," + KEY_IS_FAVOURITE + " INTEGER DEFAULT 0" + ")")
+                + KEY_GROUP_CODE + " TEXT" + ")")
         db?.execSQL(createGroupsTable)
 
         val createUserGroupsTable = ("CREATE TABLE " + TABLE_USER_GROUPS + "("
@@ -169,9 +167,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 + KEY_NOTIFICATION_IS_READ + " INTEGER DEFAULT 0" + ")")
         db?.execSQL(createNotificationsTable)
 
-        val createFavouriteGroupTable = ("CREATE TABLE " + TABLE_FAVOURITE_GROUP + "("
-                + KEY_USER_ID + " INTEGER PRIMARY KEY," + KEY_FAVOURITE_GROUP_ID + " INTEGER" + ")")
-        db?.execSQL(createFavouriteGroupTable)
+        val createFavouriteGroupsTable = ("CREATE TABLE " + TABLE_FAVOURITE_GROUPS + "("
+                + KEY_USER_ID + " INTEGER," + KEY_GROUP_ID + " INTEGER,"
+                + "PRIMARY KEY(" + KEY_USER_ID + ", " + KEY_GROUP_ID + "))")
+        db?.execSQL(createFavouriteGroupsTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
@@ -185,7 +184,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db?.execSQL("DROP TABLE IF EXISTS $TABLE_TASK_ASSIGNMENTS")
         db?.execSQL("DROP TABLE IF EXISTS $TABLE_COMMENTS")
         db?.execSQL("DROP TABLE IF EXISTS $TABLE_NOTIFICATIONS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_GROUP")
+        db?.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_GROUPS")
         onCreate(db)
     }
 
@@ -213,26 +212,57 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return count
     }
 
-    fun setFavouriteGroup(userId: Int, groupId: Long) {
+    fun addFavouriteGroup(userId: Int, groupId: Long) {
         val db = this.writableDatabase
         val values = ContentValues()
         values.put(KEY_USER_ID, userId)
-        values.put(KEY_FAVOURITE_GROUP_ID, groupId)
-        db.insertWithOnConflict(TABLE_FAVOURITE_GROUP, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        values.put(KEY_GROUP_ID, groupId)
+        db.insertWithOnConflict(TABLE_FAVOURITE_GROUPS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
-    fun getFavouriteGroup(userId: Int): Long {
+    fun removeFavouriteGroup(userId: Int, groupId: Long) {
+        val db = this.writableDatabase
+        db.delete(TABLE_FAVOURITE_GROUPS, "$KEY_USER_ID = ? AND $KEY_GROUP_ID = ?", arrayOf(userId.toString(), groupId.toString()))
+    }
+
+    fun isGroupFavourite(userId: Int, groupId: Long): Boolean {
         val db = this.readableDatabase
-        val columns = arrayOf(KEY_FAVOURITE_GROUP_ID)
-        val selection = "$KEY_USER_ID = ?"
-        val selectionArgs = arrayOf(userId.toString())
-        val cursor = db.query(TABLE_FAVOURITE_GROUP, columns, selection, selectionArgs, null, null, null)
-        var groupId = -1L
+        val cursor = db.query(TABLE_FAVOURITE_GROUPS, null, "$KEY_USER_ID = ? AND $KEY_GROUP_ID = ?", arrayOf(userId.toString(), groupId.toString()), null, null, null)
+        val isFavourite = cursor.count > 0
+        cursor.close()
+        return isFavourite
+    }
+
+    fun getFavouriteGroups(userId: Int): List<Group> {
+        val groups = mutableListOf<Group>()
+        val db = this.readableDatabase
+        val query = "SELECT g.*, u.$KEY_USERNAME as leader_name FROM $TABLE_GROUPS g " +
+                "INNER JOIN $TABLE_FAVOURITE_GROUPS fg ON g.$KEY_GROUP_ID = fg.$KEY_GROUP_ID " +
+                "INNER JOIN $TABLE_USERS u ON g.$KEY_GROUP_LEADER_ID = u.$KEY_ID " +
+                "WHERE fg.$KEY_USER_ID = ?"
+        val cursor = db.rawQuery(query, arrayOf(userId.toString()))
+
         if (cursor.moveToFirst()) {
-            groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FAVOURITE_GROUP_ID))
+            do {
+                val groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_ID))
+                val group = Group(
+                    id = groupId,
+                    name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
+                    description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_DESCRIPTION)),
+                    code = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_CODE)),
+                    leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
+                    members = getGroupMembersAsListOfString(groupId),
+                    lastUpdated = System.currentTimeMillis(), // Placeholder
+                    progress = getGroupProgress(groupId), // Calculate progress
+                    pendingTaskCount = getPendingTaskCountForGroup(groupId),
+                    assignedTasksCount = getAssignedTasksCountForGroup(groupId),
+                    isFavourite = true
+                )
+                groups.add(group)
+            } while (cursor.moveToNext())
         }
         cursor.close()
-        return groupId
+        return groups
     }
 
     fun addNotification(userId: Int, title: String, message: String): Long {
@@ -267,6 +297,30 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         cursor.close()
         return notifications
+    }
+
+    fun markNotificationAsRead(notificationId: Long) {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(KEY_NOTIFICATION_IS_READ, 1)
+        db.update(TABLE_NOTIFICATIONS, values, "$KEY_NOTIFICATION_ID = ?", arrayOf(notificationId.toString()))
+    }
+
+    fun markAllNotificationsAsRead(userId: Int) {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(KEY_NOTIFICATION_IS_READ, 1)
+        db.update(TABLE_NOTIFICATIONS, values, "$KEY_NOTIFICATION_USER_ID = ?", arrayOf(userId.toString()))
+    }
+
+    fun deleteNotification(notificationId: Long) {
+        val db = this.writableDatabase
+        db.delete(TABLE_NOTIFICATIONS, "$KEY_NOTIFICATION_ID = ?", arrayOf(notificationId.toString()))
+    }
+
+    fun deleteAllNotifications(userId: Int) {
+        val db = this.writableDatabase
+        db.delete(TABLE_NOTIFICATIONS, "$KEY_NOTIFICATION_USER_ID = ?", arrayOf(userId.toString()))
     }
 
     fun addUser(username: String, email: String, password: String): Boolean {
@@ -387,14 +441,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val groups = mutableListOf<Group>()
         val db = this.readableDatabase
 
-        val favouriteGroupId = getFavouriteGroup(userId)
-
-        val query = "SELECT g.*, u.$KEY_USERNAME as leader_name FROM $TABLE_GROUPS g " +
+        val query = "SELECT g.*, u.$KEY_USERNAME as leader_name, CASE WHEN fg.$KEY_GROUP_ID IS NOT NULL THEN 1 ELSE 0 END as is_favourite FROM $TABLE_GROUPS g " +
                 "INNER JOIN $TABLE_USER_GROUPS ug ON g.$KEY_GROUP_ID = ug.$KEY_GROUP_ID " +
                 "INNER JOIN $TABLE_USERS u ON g.$KEY_GROUP_LEADER_ID = u.$KEY_ID " +
+                "LEFT JOIN $TABLE_FAVOURITE_GROUPS fg ON g.$KEY_GROUP_ID = fg.$KEY_GROUP_ID AND fg.$KEY_USER_ID = ? " +
                 "WHERE ug.$KEY_USER_ID = ?"
 
-        val cursor = db.rawQuery(query, arrayOf(userId.toString()))
+        val cursor = db.rawQuery(query, arrayOf(userId.toString(), userId.toString()))
 
         if (cursor.moveToFirst()) {
             do {
@@ -410,7 +463,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     progress = getGroupProgress(groupId), // Calculate progress
                     pendingTaskCount = getPendingTaskCountForGroup(groupId),
                     assignedTasksCount = getAssignedTasksCountForGroup(groupId),
-                    isFavourite = groupId == favouriteGroupId
+                    isFavourite = cursor.getInt(cursor.getColumnIndexOrThrow("is_favourite")) == 1
                 )
                 groups.add(group)
             } while (cursor.moveToNext())
@@ -429,7 +482,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         var group: Group? = null
         if (cursor.moveToFirst()) {
-            val favouriteGroupId = getFavouriteGroup(getGroupLeaderId(groupId))
+            val userId = getGroupLeaderId(groupId)
             group = Group(
                 id = groupId,
                 name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
@@ -441,7 +494,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 progress = getGroupProgress(groupId), // Calculate progress
                 pendingTaskCount = getPendingTaskCountForGroup(groupId),
                 assignedTasksCount = getAssignedTasksCountForGroup(groupId),
-                isFavourite = groupId == favouriteGroupId
+                isFavourite = isGroupFavourite(userId, groupId)
             )
         }
         cursor.close()

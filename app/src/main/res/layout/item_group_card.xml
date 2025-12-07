@@ -4,16 +4,19 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    android:background="#FFFFFF"
-    app:cardBackgroundColor="#FFFFFF">
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp"
+    app:strokeColor="#C7C1B8"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:backgroundTint="#B1F4D7D7"
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Header: Icon, Name, Menu -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,7 +27,8 @@
                 android:id="@+id/group_icon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:src="@drawable/ic_group" />
+                android:src="@drawable/ic_group"
+                app:tint="#F28A30" />
 
             <TextView
                 android:id="@+id/group_name"
@@ -34,6 +38,7 @@
                 android:layout_weight="1"
                 android:text="Group Name"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
+                android:textColor="#2C2A28"
                 android:textStyle="bold" />
 
             <ImageButton
@@ -42,60 +47,66 @@
                 android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Group Actions"
-                android:src="@drawable/ic_more_vert" />
+                android:src="@drawable/ic_more_vert"
+                app:tint="#AAA39A" />
         </LinearLayout>
 
+        <!-- Description -->
+        <TextView
+            android:id="@+id/group_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Short Description"
+            android:textColor="#4F4B48"
+            android:textStyle="italic" />
+
+        <!-- Details -->
         <TextView
             android:id="@+id/group_leader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Group Leader: [Leader]" />
+            android:layout_marginTop="12dp"
+            android:text="Group Leader: [Leader]"
+            android:textColor="#4F4B48" />
 
         <TextView
             android:id="@+id/group_members"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Members: 0" />
+            android:layout_marginTop="4dp"
+            android:text="Members: 0"
+            android:textColor="#4F4B48" />
 
         <TextView
             android:id="@+id/assigned_tasks"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Assigned Tasks: 0" />
+            android:layout_marginTop="4dp"
+            android:text="Assigned Tasks: 0"
+            android:textColor="#4F4B48" />
 
-        <TextView
-            android:id="@+id/group_description"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Short Description"
-            android:textStyle="italic" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/last_updated"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Last updated: "
-                android:textSize="12sp" />
-
-        </LinearLayout>
-
+        <!-- Progress -->
         <ProgressBar
             android:id="@+id/group_progress"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="12dp"
             android:max="100"
-            android:progress="50" />
+            android:progress="50"
+            android:progressTint="#6DBE45" />
+
+        <!-- Last Updated -->
+        <TextView
+            android:id="@+id/last_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Last updated: "
+            android:textColor="#4F4B48"
+            android:textSize="12sp" />
 
     </LinearLayout>
+
 </com.google.android.material.card.MaterialCardView>

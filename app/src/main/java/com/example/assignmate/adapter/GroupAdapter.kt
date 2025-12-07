@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
 import com.example.assignmate.databinding.ItemGroupCardBinding
 import com.example.assignmate.model.Group
@@ -13,10 +14,11 @@ import java.util.Locale
 
 class GroupAdapter(
     private val groups: List<Group>,
+    private val currentUserId: Int,
     private val onGroupClicked: (Group) -> Unit,
     private val onEditClicked: (Group) -> Unit,
     private val onDeleteClicked: (Group) -> Unit,
-    private val onAddToFavouriteClicked: (Group) -> Unit
+    private val onFavouriteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
@@ -48,10 +50,18 @@ class GroupAdapter(
             binding.groupOverflowMenu.setOnClickListener { view ->
                 val popup = PopupMenu(view.context, view)
                 popup.menuInflater.inflate(R.menu.group_card_menu, popup.menu)
+
+                val favouriteMenuItem = popup.menu.findItem(R.id.action_add_to_favourite)
+                if (group.isFavourite) {
+                    favouriteMenuItem.title = "Remove from Favourites"
+                } else {
+                    favouriteMenuItem.title = "Add to Favourites"
+                }
+
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         R.id.action_add_to_favourite -> {
-                            onAddToFavouriteClicked(group)
+                            onFavouriteClicked(group)
                             true
                         }
                         R.id.action_edit_group -> {

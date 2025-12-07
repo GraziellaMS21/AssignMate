@@ -76,10 +76,20 @@ class SingleGroupActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
+        val favouriteMenuItem = menu?.findItem(R.id.action_add_to_favourite)
+        if (databaseHelper.isGroupFavourite(currentUserId, groupId)) {
+            favouriteMenuItem?.title = "Remove from Favourites"
+        } else {
+            favouriteMenuItem?.title = "Add to Favourites"
+        }
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             android.R.id.home -> finish()
-            R.id.action_add_to_favourite -> addToFavourite()
+            R.id.action_add_to_favourite -> toggleFavourite()
             R.id.action_edit_group -> showEditGroupDialog()
             R.id.action_delete_group -> showDeleteGroupDialog()
             R.id.action_manage_labels -> showManageLabelsDialog()
@@ -89,9 +99,15 @@ class SingleGroupActivity : AppCompatActivity() {
         return true
     }
 
-    private fun addToFavourite() {
-        databaseHelper.setFavouriteGroup(currentUserId, groupId)
-        Toast.makeText(this, "Group added to favorites", Toast.LENGTH_SHORT).show()
+    private fun toggleFavourite() {
+        if (databaseHelper.isGroupFavourite(currentUserId, groupId)) {
+            databaseHelper.removeFavouriteGroup(currentUserId, groupId)
+            Toast.makeText(this, "Group removed from favorites", Toast.LENGTH_SHORT).show()
+        } else {
+            databaseHelper.addFavouriteGroup(currentUserId, groupId)
+            Toast.makeText(this, "Group added to favorites", Toast.LENGTH_SHORT).show()
+        }
+        invalidateOptionsMenu()
     }
 
     private fun showEditGroupDialog() {
@@ -332,7 +348,6 @@ class SingleGroupActivity : AppCompatActivity() {
                         notificationHelper.sendNotification(it, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
                     }
                     Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
-                    (viewPagerAdapter.getFragment(0) as? GroupTasksFragment)?.refreshTasks()
                 } else {
                     Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
                 }
@@ -346,21 +361,15 @@ class SingleGroupActivity : AppCompatActivity() {
         builder.show()
     }
 
-    inner class ViewPagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        private val fragments = mutableMapOf<Int, Fragment>()
-
+    inner class ViewPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
         override fun getItemCount(): Int = 2
 
         override fun createFragment(position: Int): Fragment {
-            val fragment = when (position) {
+            return when (position) {
                 0 -> GroupTasksFragment.newInstance(groupId)
                 1 -> MembersFragment.newInstance(groupId, currentUserId)
                 else -> throw IllegalStateException("Invalid position")
             }
-            fragments[position] = fragment
-            return fragment
         }
-
-        fun getFragment(position: Int): Fragment? = fragments[position]
     }
 }

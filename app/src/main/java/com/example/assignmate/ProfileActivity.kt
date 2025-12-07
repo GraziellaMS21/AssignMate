@@ -12,6 +12,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -54,6 +55,29 @@ class ProfileActivity : AppCompatActivity(), BottomNavigationView.OnNavigationIt
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
         bottomNavigationView.setOnNavigationItemSelectedListener(this)
         bottomNavigationView.selectedItemId = R.id.action_profile
+
+        val notificationBell = findViewById<ImageView>(R.id.notification_bell)
+        notificationBell.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            intent.putExtra("USER_ID", currentUserId)
+            startActivity(intent)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateNotificationBadge()
+    }
+
+    private fun updateNotificationBadge() {
+        val notificationBadge = findViewById<TextView>(R.id.notification_badge)
+        val unreadCount = databaseHelper.getUnreadNotificationCount(currentUserId)
+        if (unreadCount > 0) {
+            notificationBadge.visibility = View.VISIBLE
+            notificationBadge.text = unreadCount.toString()
+        } else {
+            notificationBadge.visibility = View.GONE
+        }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {

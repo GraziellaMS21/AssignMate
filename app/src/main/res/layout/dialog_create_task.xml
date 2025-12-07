@@ -18,7 +18,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Task Name">
+        android:hint="Task Name"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/task_name_input"
@@ -30,7 +32,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:hint="Task Description">
+        android:hint="Task Description"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/task_description_input"
@@ -42,7 +46,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:hint="Due Date">
+        android:hint="Due Date"
+        app:boxStrokeColor="#6DBE45"
+        app:hintTextColor="#6DBE45">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/due_date_input"

@@ -1,15 +1,25 @@
 package com.example.assignmate.adapter
 
+import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.R
 import com.example.assignmate.databinding.ItemNotificationBinding
 import com.example.assignmate.model.Notification
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class NotificationAdapter(private val notifications: List<Notification>) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
+class NotificationAdapter(
+    private val notifications: MutableList<Notification>,
+    private val onMarkAsReadClicked: (Notification) -> Unit,
+    private val onItemLongClicked: () -> Unit
+) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
+
+    private var isSelectionMode = false
+    private val selectedItems = mutableSetOf<Notification>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NotificationViewHolder {
         val binding = ItemNotificationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -18,16 +28,61 @@ class NotificationAdapter(private val notifications: List<Notification>) : Recyc
 
     override fun onBindViewHolder(holder: NotificationViewHolder, position: Int) {
         val notification = notifications[position]
-        holder.bind(notification)
+        holder.bind(notification, isSelectionMode, selectedItems.contains(notification))
     }
 
     override fun getItemCount() = notifications.size
 
-    class NotificationViewHolder(private val binding: ItemNotificationBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(notification: Notification) {
+    fun setSelectionMode(enabled: Boolean) {
+        isSelectionMode = enabled
+        notifyDataSetChanged()
+    }
+
+    fun clearSelections() {
+        selectedItems.clear()
+        notifyDataSetChanged()
+    }
+
+    fun getSelectedNotifications(): List<Notification> {
+        return selectedItems.toList()
+    }
+
+    inner class NotificationViewHolder(private val binding: ItemNotificationBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(notification: Notification, isSelectionMode: Boolean, isSelected: Boolean) {
             binding.notificationTitle.text = notification.title
             binding.notificationMessage.text = notification.message
             binding.notificationTimestamp.text = SimpleDateFormat("hh:mm a, dd/MM/yy", Locale.getDefault()).format(Date(notification.timestamp))
+
+            if (notification.isRead) {
+                binding.notificationContainer.setBackgroundColor(Color.WHITE)
+                binding.markReadButton.visibility = View.GONE
+            } else {
+                binding.notificationContainer.setBackgroundColor(itemView.context.getColor(R.color.off_white))
+                binding.markReadButton.visibility = View.VISIBLE
+            }
+
+            binding.markReadButton.setOnClickListener {
+                onMarkAsReadClicked(notification)
+            }
+
+            if (isSelectionMode) {
+                binding.selectionCheckbox.visibility = View.VISIBLE
+                binding.selectionCheckbox.isChecked = isSelected
+                itemView.setOnClickListener {
+                    if (selectedItems.contains(notification)) {
+                        selectedItems.remove(notification)
+                    } else {
+                        selectedItems.add(notification)
+                    }
+                    notifyItemChanged(adapterPosition)
+                }
+            } else {
+                binding.selectionCheckbox.visibility = View.GONE
+                itemView.setOnLongClickListener {
+                    onItemLongClicked()
+                    true
+                }
+            }
         }
     }
 }
