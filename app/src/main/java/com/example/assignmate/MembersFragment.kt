@@ -42,7 +42,7 @@ class MembersFragment : Fragment() {
         loadMembers()
     }
 
-    private fun loadMembers() {
+    fun loadMembers() {
         val members = databaseHelper.getGroupMembers(groupId)
         binding.membersRecyclerView.layoutManager = LinearLayoutManager(context)
         binding.membersRecyclerView.adapter = MembersAdapter(members, ::onMemberAction)

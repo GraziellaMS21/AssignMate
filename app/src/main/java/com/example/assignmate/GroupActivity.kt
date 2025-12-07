@@ -9,6 +9,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.MenuItem
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -43,6 +44,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         currentUserId = intent.getIntExtra("USER_ID", -1)
 
         setupRecyclerView()
+        setupFilter()
 
         binding.addGroupButton.setOnClickListener {
             showJoinGroupDialog()
@@ -64,6 +66,30 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         super.onResume()
         loadGroups()
         updateNotificationBadge()
+    }
+
+    private fun setupFilter(){
+        val filterOptions = arrayOf("All", "Favourite")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
+        binding.filterDropdown.setAdapter(adapter)
+
+        binding.searchInput.addTextChangedListener(object: TextWatcher{
+            override fun afterTextChanged(s: Editable?) {
+                filterGroups()
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        binding.filterDropdown.setOnItemClickListener { _, _, _, _ ->
+            filterGroups()
+        }
+    }
+
+    private fun filterGroups(){
+        val query = binding.searchInput.text.toString()
+        val filter = binding.filterDropdown.text.toString()
+        groupAdapter.filter(query, filter)
     }
 
     private fun updateNotificationBadge() {
@@ -113,16 +139,14 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         lifecycleScope.launch(Dispatchers.IO) {
             val userGroups = databaseHelper.getGroupsForUser(currentUserId)
             withContext(Dispatchers.Main) {
-                groups.clear()
-                groups.addAll(userGroups)
-                groupAdapter.notifyDataSetChanged()
+                groupAdapter.setGroups(userGroups)
                 updateUI()
             }
         }
     }
 
     private fun updateUI() {
-        if (groups.isEmpty()) {
+        if (groupAdapter.itemCount == 0) {
             binding.groupsRecyclerView.visibility = View.GONE
             binding.noGroupsLayout.visibility = View.VISIBLE
         } else {

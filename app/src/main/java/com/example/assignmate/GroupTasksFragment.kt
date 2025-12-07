@@ -1,13 +1,12 @@
 package com.example.assignmate
 
-import android.content.Intent
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.adapter.TaskAdapter
@@ -45,14 +44,25 @@ class GroupTasksFragment : Fragment() {
     private fun loadTasks() {
         val tasks = databaseHelper.getTasksForGroup(groupId)
         val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
-        taskAdapter = TaskAdapter(tasks, currentUserId) { task ->
+        taskAdapter = TaskAdapter(tasks, currentUserId, databaseHelper) { task ->
             showDeleteConfirmationDialog(task)
         }
         tasksRecyclerView.adapter = taskAdapter
     }
 
+    fun filterTasks(filterType: String, query: String) {
+        val tasks = when (filterType) {
+            "All" -> databaseHelper.getTasksForGroup(groupId, query)
+            "By Assignee" -> databaseHelper.getTasksForGroupFilteredByAssignee(groupId, query)
+            "By Label" -> databaseHelper.getTasksForGroupFilteredByLabel(groupId, query)
+            else -> databaseHelper.getTasksForGroup(groupId)
+        }
+        taskAdapter.updateTasks(tasks)
+    }
+
     fun refreshTasks() {
-        loadTasks()
+        val tasks = databaseHelper.getTasksForGroup(groupId)
+        taskAdapter.updateTasks(tasks)
     }
 
     private fun showDeleteConfirmationDialog(task: Task) {

@@ -1,23 +1,28 @@
 package com.example.assignmate.adapter
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
 import com.example.assignmate.TaskDetailActivity
 import com.example.assignmate.databinding.ItemTaskBinding
 import com.example.assignmate.model.Task
+import com.google.android.material.chip.Chip
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class TaskAdapter(
-    private val tasks: List<Task>,
+    private var tasks: List<Task>,
     private val currentUserId: Int,
+    private val databaseHelper: DatabaseHelper,
     private val onDeleteClicked: (Task) -> Unit
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
@@ -33,23 +38,83 @@ class TaskAdapter(
 
     override fun getItemCount() = tasks.size
 
+    fun updateTasks(newTasks: List<Task>){
+        tasks = newTasks
+        notifyDataSetChanged()
+    }
+
     inner class TaskViewHolder(private val binding: ItemTaskBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(task: Task) {
+            val context = itemView.context
             binding.taskName.text = task.name
             binding.taskDescription.text = task.description
             binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
+
             binding.status.text = task.status
 
-            val statusColor = when (task.status) {
-                "Not Started" -> R.color.status_not_started
-                "In progress" -> R.color.status_in_progress
-                "Complete" -> R.color.status_complete
-                else -> android.R.color.black
+            val (statusColor, statusBackground) = when (task.status) {
+                "Not Started" -> R.color.status_not_started to R.drawable.status_background_not_started
+                "In progress" -> R.color.status_in_progress to R.drawable.status_background_in_progress
+                "Complete" -> R.color.status_complete to R.drawable.status_background_complete
+                else -> android.R.color.black to R.drawable.status_background_in_progress // Default
             }
-            binding.status.setTextColor(ContextCompat.getColor(itemView.context, statusColor))
+            binding.status.setTextColor(ContextCompat.getColor(context, statusColor))
+            binding.status.setBackgroundResource(statusBackground)
+
+            if (task.dueDate < System.currentTimeMillis() && task.status != "Complete") {
+                binding.overdueIndicator.visibility = View.VISIBLE
+            } else {
+                binding.overdueIndicator.visibility = View.GONE
+            }
+
+            // Handle Assignees
+            binding.assignedMembersChipGroup.removeAllViews()
+            if (!task.assignedTo.isNullOrEmpty()) {
+                binding.assigneesSection.visibility = View.VISIBLE
+                task.assignedTo.forEach { userId ->
+                    val userDetails = databaseHelper.getUserDetails(userId)
+                    if (userDetails != null) {
+                        val chip = Chip(context)
+                        chip.text = userDetails.first
+                        chip.chipMinHeight = 48f
+                        chip.setTextAppearance(R.style.AppChipTextAppearance)
+                        binding.assignedMembersChipGroup.addView(chip)
+                    }
+                }
+            } else {
+                binding.assigneesSection.visibility = View.GONE
+            }
+
+            // Handle Labels
+            binding.labelsChipGroup.removeAllViews()
+            val labels = databaseHelper.getLabelsForTask(task.id)
+            if (labels.isNotEmpty()) {
+                binding.labelsSection.visibility = View.VISIBLE
+                labels.forEach { label ->
+                    val chip = Chip(context)
+                    chip.text = label.name
+                    chip.chipMinHeight = 48f
+                    chip.setTextAppearance(R.style.AppChipTextAppearance)
+                    try {
+                        val color = Color.parseColor(label.color)
+                        chip.chipBackgroundColor = ColorStateList.valueOf(color)
+
+                        val luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255
+                        if (luminance > 0.5) {
+                            chip.setTextColor(Color.BLACK)
+                        } else {
+                            chip.setTextColor(Color.WHITE)
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        chip.chipBackgroundColor = ColorStateList.valueOf(Color.LTGRAY)
+                    }
+                    binding.labelsChipGroup.addView(chip)
+                }
+            } else {
+                binding.labelsSection.visibility = View.GONE
+            }
 
             binding.root.setOnClickListener {
-                val context = itemView.context
                 val intent = Intent(context, TaskDetailActivity::class.java).apply {
                     putExtra("TASK_ID", task.id)
                     putExtra("USER_ID", currentUserId)
@@ -59,7 +124,7 @@ class TaskAdapter(
 
             binding.taskOverflowMenu.setOnClickListener { view ->
                 val popup = PopupMenu(view.context, view)
-                popup.menuInflater.inflate(R.menu.task_detail_menu, popup.menu)
+                popup.menuInflater.inflate(R.menu.group_task_menu, popup.menu)
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         R.id.action_delete_task -> {

@@ -13,13 +13,15 @@ import java.util.Date
 import java.util.Locale
 
 class GroupAdapter(
-    private val groups: List<Group>,
+    private var groups: MutableList<Group>,
     private val currentUserId: Int,
     private val onGroupClicked: (Group) -> Unit,
     private val onEditClicked: (Group) -> Unit,
     private val onDeleteClicked: (Group) -> Unit,
     private val onFavouriteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
+
+    private var allGroups: List<Group> = groups
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
         val binding = ItemGroupCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -32,6 +34,28 @@ class GroupAdapter(
     }
 
     override fun getItemCount() = groups.size
+
+    fun setGroups(groups: List<Group>){
+        this.allGroups = groups
+        this.groups.clear()
+        this.groups.addAll(groups)
+        notifyDataSetChanged()
+    }
+
+    fun filter(query: String, filter: String) {
+        val filteredList = allGroups.filter { group ->
+            val matchesQuery = group.name.contains(query, ignoreCase = true) ||
+                    group.description.contains(query, ignoreCase = true)
+            val matchesFilter = when (filter) {
+                "Favourite" -> group.isFavourite
+                else -> true
+            }
+            matchesQuery && matchesFilter
+        }
+        groups.clear()
+        groups.addAll(filteredList)
+        notifyDataSetChanged()
+    }
 
     inner class GroupViewHolder(private val binding: ItemGroupCardBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(group: Group) {

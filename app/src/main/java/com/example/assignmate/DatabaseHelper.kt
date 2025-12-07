@@ -187,6 +187,133 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db?.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_GROUPS")
         onCreate(db)
     }
+    
+    fun getTasksForGroup(groupId: Long, query: String? = null): List<Task> {
+        val tasks = mutableListOf<Task>()
+        val db = this.readableDatabase
+        var selection = "t.$KEY_TASK_GROUP_ID = ?"
+        val selectionArgs = mutableListOf(groupId.toString())
+
+        if (!query.isNullOrEmpty()) {
+            selection += " AND (t.$KEY_TASK_NAME LIKE ? OR t.$KEY_TASK_DESCRIPTION LIKE ?)"
+            selectionArgs.add("%$query%")
+            selectionArgs.add("%$query%")
+        }
+
+        val sql = "SELECT t.*, g.$KEY_GROUP_NAME FROM $TABLE_TASKS t INNER JOIN $TABLE_GROUPS g ON t.$KEY_TASK_GROUP_ID = g.$KEY_GROUP_ID WHERE $selection ORDER BY t.$KEY_DUE_DATE"
+        val cursor = db.rawQuery(sql, selectionArgs.toTypedArray())
+
+        if (cursor.moveToFirst()) {
+            do {
+                val taskId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_ID))
+                val assignedTo = getAssignedUsersForTask(taskId)
+                val task = Task(
+                    id = taskId,
+                    name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_NAME)),
+                    description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_DESCRIPTION)),
+                    groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_GROUP_ID)),
+                    groupName = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
+                    dueDate = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DUE_DATE)),
+                    status = cursor.getString(cursor.getColumnIndexOrThrow(KEY_STATUS)),
+                    assignedTo = assignedTo
+                )
+                tasks.add(task)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return tasks
+    }
+
+    fun getTasksForGroupFilteredByAssignee(groupId: Long, assigneeNameQuery: String): List<Task> {
+        val tasks = mutableListOf<Task>()
+        val db = this.readableDatabase
+        val query = "SELECT DISTINCT t.*, g.$KEY_GROUP_NAME FROM $TABLE_TASKS t " +
+                "INNER JOIN $TABLE_GROUPS g ON t.$KEY_TASK_GROUP_ID = g.$KEY_GROUP_ID " +
+                "INNER JOIN $TABLE_TASK_ASSIGNMENTS ta ON t.$KEY_TASK_ID = ta.$KEY_ASSIGNMENT_TASK_ID " +
+                "INNER JOIN $TABLE_USERS u ON ta.$KEY_ASSIGNMENT_USER_ID = u.$KEY_ID " +
+                "WHERE t.$KEY_TASK_GROUP_ID = ? AND u.$KEY_USERNAME LIKE ?"
+        val cursor = db.rawQuery(query, arrayOf(groupId.toString(), "%$assigneeNameQuery%"))
+
+        if (cursor.moveToFirst()) {
+            do {
+                val taskId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_ID))
+                val assignedTo = getAssignedUsersForTask(taskId)
+                val task = Task(
+                    id = taskId,
+                    name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_NAME)),
+                    description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_DESCRIPTION)),
+                    groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_GROUP_ID)),
+                    groupName = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
+                    dueDate = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DUE_DATE)),
+                    status = cursor.getString(cursor.getColumnIndexOrThrow(KEY_STATUS)),
+                    assignedTo = assignedTo
+                )
+                tasks.add(task)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return tasks
+    }
+
+    fun getTasksForGroupFilteredByLabel(groupId: Long, labelNameQuery: String): List<Task> {
+        val tasks = mutableListOf<Task>()
+        val db = this.readableDatabase
+        val query = "SELECT DISTINCT t.*, g.$KEY_GROUP_NAME FROM $TABLE_TASKS t " +
+                "INNER JOIN $TABLE_GROUPS g ON t.$KEY_TASK_GROUP_ID = g.$KEY_GROUP_ID " +
+                "INNER JOIN $TABLE_TASK_LABELS tl ON t.$KEY_TASK_ID = tl.$KEY_TASK_LABEL_TASK_ID " +
+                "INNER JOIN $TABLE_LABELS l ON tl.$KEY_TASK_LABEL_LABEL_ID = l.$KEY_LABEL_ID " +
+                "WHERE t.$KEY_TASK_GROUP_ID = ? AND l.$KEY_LABEL_NAME LIKE ?"
+        val cursor = db.rawQuery(query, arrayOf(groupId.toString(), "%$labelNameQuery%"))
+
+        if (cursor.moveToFirst()) {
+            do {
+                val taskId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_ID))
+                val assignedTo = getAssignedUsersForTask(taskId)
+                val task = Task(
+                    id = taskId,
+                    name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_NAME)),
+                    description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_DESCRIPTION)),
+                    groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_GROUP_ID)),
+                    groupName = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
+                    dueDate = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DUE_DATE)),
+                    status = cursor.getString(cursor.getColumnIndexOrThrow(KEY_STATUS)),
+                    assignedTo = assignedTo
+                )
+                tasks.add(task)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return tasks
+    }
+
+    fun removeTaskLabel(taskId: Long, labelId: Long): Boolean {
+        val db = this.writableDatabase
+        val selection = "$KEY_TASK_LABEL_TASK_ID = ? AND $KEY_TASK_LABEL_LABEL_ID = ?"
+        val selectionArgs = arrayOf(taskId.toString(), labelId.toString())
+        val count = db.delete(TABLE_TASK_LABELS, selection, selectionArgs)
+        return count > 0
+    }
+
+    fun updateTaskLabels(taskId: Long, labelIds: Set<Long>) {
+        val db = this.writableDatabase
+        db.beginTransaction()
+        try {
+            // Remove existing labels for the task
+            db.delete(TABLE_TASK_LABELS, "$KEY_TASK_LABEL_TASK_ID = ?", arrayOf(taskId.toString()))
+
+            // Add new labels for the task
+            labelIds.forEach { labelId ->
+                val values = ContentValues().apply {
+                    put(KEY_TASK_LABEL_TASK_ID, taskId)
+                    put(KEY_TASK_LABEL_LABEL_ID, labelId)
+                }
+                db.insert(TABLE_TASK_LABELS, null, values)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
 
     fun getUnreadNotificationCount(userId: Int): Int {
         val db = this.readableDatabase
@@ -584,38 +711,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return db.insert(TABLE_SUBTASKS, null, values)
     }
 
-    fun getTasksForGroup(groupId: Long): List<Task> {
-        val tasks = mutableListOf<Task>()
-        val db = this.readableDatabase
-        val query = "SELECT t.*, g.$KEY_GROUP_NAME FROM $TABLE_TASKS t INNER JOIN $TABLE_GROUPS g ON t.$KEY_TASK_GROUP_ID = g.$KEY_GROUP_ID WHERE t.$KEY_TASK_GROUP_ID = ? ORDER BY t.$KEY_DUE_DATE"
-        val cursor = db.rawQuery(query, arrayOf(groupId.toString()))
-
-        if (cursor.moveToFirst()) {
-            do {
-                val taskId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_ID))
-                val assignedTo = getAssignedUsersForTask(taskId)
-                val task = Task(
-                    id = taskId,
-                    name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_NAME)),
-                    description = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TASK_DESCRIPTION)),
-                    groupId = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TASK_GROUP_ID)),
-                    groupName = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_NAME)),
-                    dueDate = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DUE_DATE)),
-                    status = cursor.getString(cursor.getColumnIndexOrThrow(KEY_STATUS)),
-                    assignedTo = assignedTo
-                )
-                tasks.add(task)
-            } while (cursor.moveToNext())
-        }
-        cursor.close()
-        return tasks
-    }
-
     fun getUpcomingTasksForUser(userId: Int): List<Task> {
         val tasks = mutableListOf<Task>()
         val db = this.readableDatabase
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, 3) // Due within the next 3 days
+        calendar.add(Calendar.DAY_OF_YEAR, 7)
         val dueDateLimit = calendar.timeInMillis
 
         val query = "SELECT t.*, g.$KEY_GROUP_NAME FROM $TABLE_TASKS t " +
@@ -879,13 +979,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     fun getDueTasksForUser(userId: Int): Int {
         val db = this.readableDatabase
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, 3) // Due within the next 3 days
-        val dueDateLimit = calendar.timeInMillis
-
+        val currentTime = System.currentTimeMillis()
         val query = "SELECT COUNT(*) FROM $TABLE_TASKS t " +
                 "INNER JOIN $TABLE_USER_GROUPS ug ON t.$KEY_TASK_GROUP_ID = ug.$KEY_GROUP_ID " +
-                "WHERE ug.$KEY_USER_ID = ? AND t.$KEY_DUE_DATE <= $dueDateLimit AND t.$KEY_STATUS != 'Complete'"
+                "WHERE ug.$KEY_USER_ID = ? AND t.$KEY_DUE_DATE < $currentTime AND t.$KEY_STATUS != 'Complete'"
 
         val cursor = db.rawQuery(query, arrayOf(userId.toString()))
         var count = 0

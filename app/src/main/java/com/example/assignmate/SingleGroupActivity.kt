@@ -5,9 +5,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -52,23 +55,51 @@ class SingleGroupActivity : AppCompatActivity() {
         supportActionBar?.title = groupName
 
         if (databaseHelper.getGroupLeaderId(groupId) == currentUserId) {
-            binding.fabAddTask.visibility = View.VISIBLE
+            binding.fabAddTaskButton.visibility = View.VISIBLE
         }
 
-        binding.fabAddTask.setOnClickListener {
+        binding.fabAddTaskButton.setOnClickListener {
             showCreateTaskDialog()
         }
 
         viewPagerAdapter = ViewPagerAdapter(this)
         binding.viewPager.adapter = viewPagerAdapter
 
-        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+        TabLayoutMediator(binding.tabs, binding.viewPager) { tab, position ->
             tab.text = when (position) {
                 0 -> "Group Tasks"
                 1 -> "Members"
                 else -> null
             }
         }.attach()
+
+        setupFilter()
+    }
+
+    private fun setupFilter() {
+        val filterOptions = arrayOf("All", "By Assignee", "By Label")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
+        binding.filterDropdown.setAdapter(adapter)
+
+        val textWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                filterTasks()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        }
+
+        binding.searchInput.addTextChangedListener(textWatcher)
+        binding.filterDropdown.setOnItemClickListener { _, _, _, _ -> filterTasks() }
+    }
+
+    private fun filterTasks() {
+        val fragment = supportFragmentManager.findFragmentByTag("f0")
+        if (fragment is GroupTasksFragment) {
+            val filterType = binding.filterDropdown.text.toString()
+            val searchQuery = binding.searchInput.text.toString()
+            fragment.filterTasks(filterType, searchQuery)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -264,6 +295,8 @@ class SingleGroupActivity : AppCompatActivity() {
                     if (databaseHelper.addMemberToGroup(newMemberId, groupId)) {
                         Toast.makeText(this, "Member added successfully", Toast.LENGTH_SHORT).show()
                         notificationHelper.sendNotification(newMemberId, "New Group Member", "You have been added to a new group.", groupId.toInt())
+                        val membersFragment = supportFragmentManager.findFragmentByTag("f1") as? MembersFragment
+                        membersFragment?.loadMembers()
                     } else {
                         Toast.makeText(this, "Member is already in the group", Toast.LENGTH_SHORT).show()
                     }
@@ -348,6 +381,8 @@ class SingleGroupActivity : AppCompatActivity() {
                         notificationHelper.sendNotification(it, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
                     }
                     Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
+                    val tasksFragment = supportFragmentManager.findFragmentByTag("f0") as? GroupTasksFragment
+                    tasksFragment?.refreshTasks()
                 } else {
                     Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
                 }
