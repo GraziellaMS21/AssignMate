@@ -1,10 +1,13 @@
 package com.example.assignmate
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,6 +22,12 @@ class GroupTasksFragment : Fragment() {
 
     private lateinit var tasksRecyclerView: RecyclerView
     private lateinit var taskAdapter: TaskAdapter
+
+    private val taskDetailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            refreshTasks()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,9 +53,17 @@ class GroupTasksFragment : Fragment() {
     private fun loadTasks() {
         val tasks = databaseHelper.getTasksForGroup(groupId)
         val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
-        taskAdapter = TaskAdapter(tasks, currentUserId, databaseHelper) { task ->
+        taskAdapter = TaskAdapter(tasks, currentUserId, databaseHelper,
+            onItemClicked = {
+                val intent = Intent(requireContext(), TaskDetailActivity::class.java).apply {
+                    putExtra("TASK_ID", it.id)
+                    putExtra("USER_ID", currentUserId)
+                }
+                taskDetailLauncher.launch(intent)
+            },
+            onDeleteClicked = { task ->
             showDeleteConfirmationDialog(task)
-        }
+        })
         tasksRecyclerView.adapter = taskAdapter
     }
 

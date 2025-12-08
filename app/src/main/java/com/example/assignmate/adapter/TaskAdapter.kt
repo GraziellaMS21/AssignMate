@@ -1,6 +1,5 @@
 package com.example.assignmate.adapter
 
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
@@ -11,7 +10,6 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
-import com.example.assignmate.TaskDetailActivity
 import com.example.assignmate.databinding.ItemTaskBinding
 import com.example.assignmate.model.Task
 import com.google.android.material.chip.Chip
@@ -23,6 +21,7 @@ class TaskAdapter(
     private var tasks: List<Task>,
     private val currentUserId: Int,
     private val databaseHelper: DatabaseHelper,
+    private val onItemClicked: (Task) -> Unit, // Changed to a lambda
     private val onDeleteClicked: (Task) -> Unit
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
@@ -115,11 +114,7 @@ class TaskAdapter(
             }
 
             binding.root.setOnClickListener {
-                val intent = Intent(context, TaskDetailActivity::class.java).apply {
-                    putExtra("TASK_ID", task.id)
-                    putExtra("USER_ID", currentUserId)
-                }
-                context.startActivity(intent)
+                onItemClicked(task)
             }
 
             binding.taskOverflowMenu.setOnClickListener { view ->

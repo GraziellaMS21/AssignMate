@@ -44,7 +44,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         currentUserId = intent.getIntExtra("USER_ID", -1)
 
         setupRecyclerView()
-        setupFilter()
+        setupFilterAndSort()
 
         binding.addGroupButton.setOnClickListener {
             showJoinGroupDialog()
@@ -68,28 +68,49 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
         updateNotificationBadge()
     }
 
-    private fun setupFilter(){
+    private fun setupFilterAndSort(){
         val filterOptions = arrayOf("All", "Favourite")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
-        binding.filterDropdown.setAdapter(adapter)
+        val filterAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
+        binding.filterDropdown.setAdapter(filterAdapter)
+
+        val sortOptions = arrayOf("Date Created", "Last Updated", "Most Tasks Assigned")
+        val sortAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, sortOptions)
+        binding.sortDropdown.setAdapter(sortAdapter)
+        binding.sortDropdown.setText(sortOptions[0], false)
 
         binding.searchInput.addTextChangedListener(object: TextWatcher{
             override fun afterTextChanged(s: Editable?) {
-                filterGroups()
+                filterAndSortGroups()
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
         binding.filterDropdown.setOnItemClickListener { _, _, _, _ ->
-            filterGroups()
+            filterAndSortGroups()
+        }
+
+        binding.sortDropdown.setOnItemClickListener { _, _, _, _ ->
+            // When sort order changes, we should reload from the DB to get the correct order
+            loadGroups()
         }
     }
 
-    private fun filterGroups(){
+    private fun filterAndSortGroups(){
         val query = binding.searchInput.text.toString()
         val filter = binding.filterDropdown.text.toString()
-        groupAdapter.filter(query, filter)
+        val sortBy = getCurrentSortBy()
+        // This call will now just filter the currently loaded (and sorted) list
+        groupAdapter.filterAndSort(query, filter, sortBy)
+        updateUI() // Ensure empty view is shown if filter results are empty
+    }
+
+    private fun getCurrentSortBy(): String {
+        return when (binding.sortDropdown.text.toString()) {
+            "Last Updated" -> "last_updated"
+            "Most Tasks Assigned" -> "most_tasks"
+            else -> "date"
+        }
     }
 
     private fun updateNotificationBadge() {
@@ -136,11 +157,13 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
     }
 
     private fun loadGroups() {
+        val sortBy = getCurrentSortBy()
         lifecycleScope.launch(Dispatchers.IO) {
-            val userGroups = databaseHelper.getGroupsForUser(currentUserId)
+            val userGroups = databaseHelper.getGroupsForUser(currentUserId, sortBy)
             withContext(Dispatchers.Main) {
                 groupAdapter.setGroups(userGroups)
-                updateUI()
+                // After loading from DB, apply current search/filter
+                filterAndSortGroups()
             }
         }
     }

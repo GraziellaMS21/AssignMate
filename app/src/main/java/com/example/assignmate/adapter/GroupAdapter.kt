@@ -4,7 +4,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
-import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
 import com.example.assignmate.databinding.ItemGroupCardBinding
 import com.example.assignmate.model.Group
@@ -42,7 +41,7 @@ class GroupAdapter(
         notifyDataSetChanged()
     }
 
-    fun filter(query: String, filter: String) {
+    fun filterAndSort(query: String, filter: String, sortBy: String) {
         val filteredList = allGroups.filter { group ->
             val matchesQuery = group.name.contains(query, ignoreCase = true) ||
                     group.description.contains(query, ignoreCase = true)
@@ -51,7 +50,14 @@ class GroupAdapter(
                 else -> true
             }
             matchesQuery && matchesFilter
+        }.toMutableList()
+
+        when (sortBy) {
+            "last_updated" -> filteredList.sortByDescending { it.lastUpdated }
+            "most_tasks" -> filteredList.sortByDescending { it.assignedTasksCount }
+            else -> filteredList.sortByDescending { it.id }
         }
+
         groups.clear()
         groups.addAll(filteredList)
         notifyDataSetChanged()

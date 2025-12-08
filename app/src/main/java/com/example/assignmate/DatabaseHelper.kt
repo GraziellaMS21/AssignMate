@@ -16,7 +16,7 @@ import java.util.Calendar
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_VERSION = 12
+        private const val DATABASE_VERSION = 13
         private const val DATABASE_NAME = "AssignMate.db"
 
         // User table
@@ -33,6 +33,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val KEY_GROUP_DESCRIPTION = "group_description"
         private const val KEY_GROUP_LEADER_ID = "group_leader_id"
         private const val KEY_GROUP_CODE = "group_code"
+        private const val KEY_GROUP_CREATED_AT = "created_at"
+        private const val KEY_GROUP_LAST_UPDATED = "last_updated"
 
         // User-Group mapping table
         private const val TABLE_USER_GROUPS = "user_groups"
@@ -107,7 +109,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val createGroupsTable = ("CREATE TABLE " + TABLE_GROUPS + "("
                 + KEY_GROUP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," + KEY_GROUP_NAME + " TEXT,"
                 + KEY_GROUP_DESCRIPTION + " TEXT," + KEY_GROUP_LEADER_ID + " INTEGER,"
-                + KEY_GROUP_CODE + " TEXT" + ")")
+                + KEY_GROUP_CODE + " TEXT,"
+                + KEY_GROUP_CREATED_AT + " INTEGER DEFAULT 0,"
+                + KEY_GROUP_LAST_UPDATED + " INTEGER DEFAULT 0" + ")")
         db?.execSQL(createGroupsTable)
 
         val createUserGroupsTable = ("CREATE TABLE " + TABLE_USER_GROUPS + "("
@@ -174,18 +178,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_GROUPS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_USER_GROUPS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_TASKS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_SUBTASKS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_LABELS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_TASK_LABELS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_TASK_ASSIGNMENTS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_COMMENTS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_NOTIFICATIONS")
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_GROUPS")
-        onCreate(db)
+        if (oldVersion < 13) {
+            db?.execSQL("ALTER TABLE $TABLE_GROUPS ADD COLUMN $KEY_GROUP_CREATED_AT INTEGER DEFAULT 0")
+            db?.execSQL("ALTER TABLE $TABLE_GROUPS ADD COLUMN $KEY_GROUP_LAST_UPDATED INTEGER DEFAULT 0")
+        }
     }
 
     fun getRoleForUserInGroup(userId: Int, groupId: Long): String? {
@@ -393,7 +389,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     code = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_CODE)),
                     leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
                     members = getGroupMembersAsListOfString(groupId),
-                    lastUpdated = System.currentTimeMillis(), // Placeholder
+                    lastUpdated = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_LAST_UPDATED)),
                     progress = getGroupProgress(groupId), // Calculate progress
                     pendingTaskCount = getPendingTaskCountForGroup(groupId),
                     assignedTasksCount = getAssignedTasksCountForGroup(groupId),
@@ -519,12 +515,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         db.beginTransaction()
         try {
+            val currentTime = System.currentTimeMillis()
             // Insert into groups table
             val groupValues = ContentValues().apply {
                 put(KEY_GROUP_NAME, groupName)
                 put(KEY_GROUP_DESCRIPTION, groupDescription)
                 put(KEY_GROUP_LEADER_ID, leaderId)
                 put(KEY_GROUP_CODE, groupCode)
+                put(KEY_GROUP_CREATED_AT, currentTime)
+                put(KEY_GROUP_LAST_UPDATED, currentTime)
             }
             groupId = db.insert(TABLE_GROUPS, null, groupValues)
 
@@ -578,15 +577,21 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return success != -1L
     }
 
-    fun getGroupsForUser(userId: Int): List<Group> {
+    fun getGroupsForUser(userId: Int, sortBy: String = "date"): List<Group> {
         val groups = mutableListOf<Group>()
         val db = this.readableDatabase
+
+        val orderBy = when (sortBy) {
+            "last_updated" -> "g.$KEY_GROUP_LAST_UPDATED DESC"
+            "most_tasks" -> "(SELECT COUNT(*) FROM $TABLE_TASKS WHERE $KEY_TASK_GROUP_ID = g.$KEY_GROUP_ID) DESC"
+            else -> "g.$KEY_GROUP_CREATED_AT DESC"
+        }
 
         val query = "SELECT g.*, u.$KEY_USERNAME as leader_name, CASE WHEN fg.$KEY_GROUP_ID IS NOT NULL THEN 1 ELSE 0 END as is_favourite FROM $TABLE_GROUPS g " +
                 "INNER JOIN $TABLE_USER_GROUPS ug ON g.$KEY_GROUP_ID = ug.$KEY_GROUP_ID " +
                 "INNER JOIN $TABLE_USERS u ON g.$KEY_GROUP_LEADER_ID = u.$KEY_ID " +
                 "LEFT JOIN $TABLE_FAVOURITE_GROUPS fg ON g.$KEY_GROUP_ID = fg.$KEY_GROUP_ID AND fg.$KEY_USER_ID = ? " +
-                "WHERE ug.$KEY_USER_ID = ?"
+                "WHERE ug.$KEY_USER_ID = ? ORDER BY $orderBy"
 
         val cursor = db.rawQuery(query, arrayOf(userId.toString(), userId.toString()))
 
@@ -600,7 +605,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     code = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_CODE)),
                     leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
                     members = getGroupMembersAsListOfString(groupId),
-                    lastUpdated = System.currentTimeMillis(), // Placeholder
+                    lastUpdated = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_LAST_UPDATED)),
                     progress = getGroupProgress(groupId), // Calculate progress
                     pendingTaskCount = getPendingTaskCountForGroup(groupId),
                     assignedTasksCount = getAssignedTasksCountForGroup(groupId),
@@ -631,7 +636,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 code = cursor.getString(cursor.getColumnIndexOrThrow(KEY_GROUP_CODE)),
                 leader = cursor.getString(cursor.getColumnIndexOrThrow("leader_name")),
                 members = getGroupMembersAsListOfString(groupId),
-                lastUpdated = System.currentTimeMillis(), // Placeholder
+                lastUpdated = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_GROUP_LAST_UPDATED)),
                 progress = getGroupProgress(groupId), // Calculate progress
                 pendingTaskCount = getPendingTaskCountForGroup(groupId),
                 assignedTasksCount = getAssignedTasksCountForGroup(groupId),
@@ -714,6 +719,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         values.put(KEY_TASK_GROUP_ID, groupId)
         values.put(KEY_DUE_DATE, dueDate)
         values.put(KEY_STATUS, "Not Started") // Default status
+        updateLastUpdated(groupId)
         return db.insert(TABLE_TASKS, null, values)
     }
 
@@ -817,6 +823,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val selection = "$KEY_TASK_ID = ?"
         val selectionArgs = arrayOf(taskId.toString())
         val count = db.update(TABLE_TASKS, values, selection, selectionArgs)
+        if (count > 0) {
+            val groupId = getTask(taskId)?.groupId
+            if(groupId != null) updateLastUpdated(groupId)
+        }
         return count > 0
     }
 
@@ -837,6 +847,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         values.put(KEY_COMMENT_USER_ID, userId)
         values.put(KEY_COMMENT_TEXT, commentText)
         values.put(KEY_COMMENT_TIMESTAMP, System.currentTimeMillis())
+        val groupId = getTask(taskId)?.groupId
+        if(groupId != null) updateLastUpdated(groupId)
         return db.insert(TABLE_COMMENTS, null, values)
     }
 
@@ -883,6 +895,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         } finally {
             db.endTransaction()
         }
+        val groupId = getTask(taskId)?.groupId
+        if(groupId != null) updateLastUpdated(groupId)
     }
 
     fun getGroupIdByCode(groupCode: String): Long {
@@ -906,6 +920,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val selection = "$KEY_GROUP_ID = ? AND $KEY_USER_ID = ?"
         val selectionArgs = arrayOf(groupId.toString(), userId.toString())
         val count = db.update(TABLE_USER_GROUPS, values, selection, selectionArgs)
+        if (count > 0) {
+            updateLastUpdated(groupId)
+        }
         return count > 0
     }
 
@@ -914,6 +931,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val selection = "$KEY_GROUP_ID = ? AND $KEY_USER_ID = ?"
         val selectionArgs = arrayOf(groupId.toString(), userId.toString())
         val count = db.delete(TABLE_USER_GROUPS, selection, selectionArgs)
+        if (count > 0) {
+            updateLastUpdated(groupId)
+        }
         return count > 0
     }
 
@@ -925,6 +945,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val selection = "$KEY_GROUP_ID = ?"
         val selectionArgs = arrayOf(groupId.toString())
         val count = db.update(TABLE_GROUPS, values, selection, selectionArgs)
+        if (count > 0) {
+            updateLastUpdated(groupId)
+        }
         return count > 0
     }
 
@@ -938,9 +961,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     fun deleteTask(taskId: Long): Boolean {
         val db = this.writableDatabase
+        val groupId = getTask(taskId)?.groupId
         val selection = "$KEY_TASK_ID = ?"
         val selectionArgs = arrayOf(taskId.toString())
         val count = db.delete(TABLE_TASKS, selection, selectionArgs)
+        if (count > 0) {
+            if(groupId != null) updateLastUpdated(groupId)
+        }
         return count > 0
     }
 
@@ -1096,5 +1123,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         cursor.close()
         return subtasks
+    }
+
+    private fun updateLastUpdated(groupId: Long) {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(KEY_GROUP_LAST_UPDATED, System.currentTimeMillis())
+        db.update(TABLE_GROUPS, values, "$KEY_GROUP_ID = ?", arrayOf(groupId.toString()))
     }
 }

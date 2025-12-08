@@ -1,5 +1,6 @@
 package com.example.assignmate
 
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -38,6 +39,7 @@ class TaskDetailActivity : AppCompatActivity() {
     private var originalTask: Task? = null
     private var modifiedTask: Task? = null
     private var hasUnsavedChanges = false
+    private var taskUpdated = false
     private var currentUserRole: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -328,6 +330,7 @@ class TaskDetailActivity : AppCompatActivity() {
 
         databaseHelper.updateTask(taskId, newTitle, newDescription, modifiedTask!!.dueDate, modifiedTask!!.status, modifiedTask!!.assignedTo)
         notifyUsersOfChanges()
+        taskUpdated = true
         hasUnsavedChanges = false
         Toast.makeText(this, "Changes saved", Toast.LENGTH_SHORT).show()
         finish()
@@ -400,6 +403,13 @@ class TaskDetailActivity : AppCompatActivity() {
         } else {
             super.onBackPressed()
         }
+    }
+
+    override fun finish() {
+        if (taskUpdated) {
+            setResult(Activity.RESULT_OK)
+        }
+        super.finish()
     }
 
     private fun setStatusColor(status: String) {
