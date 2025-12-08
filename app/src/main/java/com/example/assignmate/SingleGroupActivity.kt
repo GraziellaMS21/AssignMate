@@ -38,6 +38,7 @@ class SingleGroupActivity : AppCompatActivity() {
     private var currentUserId: Int = -1
     private lateinit var viewPagerAdapter: ViewPagerAdapter
     private var defaultColor: Int = 0
+    private var currentUserRole: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,12 +50,13 @@ class SingleGroupActivity : AppCompatActivity() {
         groupId = intent.getLongExtra("GROUP_ID", -1)
         currentUserId = intent.getIntExtra("USER_ID", -1)
         val groupName = intent.getStringExtra("GROUP_NAME")
+        currentUserRole = databaseHelper.getRoleForUserInGroup(currentUserId, groupId)
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = groupName
 
-        if (databaseHelper.getGroupLeaderId(groupId) == currentUserId) {
+        if (currentUserRole == "leader" || currentUserRole == "co-leader") {
             binding.fabAddTaskButton.visibility = View.VISIBLE
         }
 
@@ -114,6 +116,13 @@ class SingleGroupActivity : AppCompatActivity() {
         } else {
             favouriteMenuItem?.title = "Add to Favourites"
         }
+        
+        val canManageGroup = currentUserRole == "leader" || currentUserRole == "co-leader"
+        menu?.findItem(R.id.action_edit_group)?.isVisible = canManageGroup
+        menu?.findItem(R.id.action_delete_group)?.isVisible = canManageGroup
+        menu?.findItem(R.id.action_manage_labels)?.isVisible = canManageGroup
+        menu?.findItem(R.id.action_add_members)?.isVisible = canManageGroup
+
         return super.onPrepareOptionsMenu(menu)
     }
 

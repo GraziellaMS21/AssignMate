@@ -38,6 +38,7 @@ class TaskDetailActivity : AppCompatActivity() {
     private var originalTask: Task? = null
     private var modifiedTask: Task? = null
     private var hasUnsavedChanges = false
+    private var currentUserRole: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +61,7 @@ class TaskDetailActivity : AppCompatActivity() {
 
         groupLeaderId = databaseHelper.getGroupLeaderId(originalTask!!.groupId)
         isAssigned = originalTask!!.assignedTo?.contains(currentUserId) == true
+        currentUserRole = databaseHelper.getRoleForUserInGroup(currentUserId, originalTask!!.groupId)
 
         setupToolbar()
         setupViews()
@@ -84,14 +86,15 @@ class TaskDetailActivity : AppCompatActivity() {
         binding.statusDropdown.setText(originalTask!!.status, false)
         setStatusColor(originalTask!!.status)
 
-        val canEdit = isAssigned || currentUserId == groupLeaderId
-        binding.statusDropdown.isEnabled = canEdit
-        binding.taskTitleInput.isEnabled = canEdit
-        binding.taskDescriptionInput.isEnabled = canEdit
-        binding.dueDateInput.isEnabled = canEdit
-        binding.addAssigneeIcon.isEnabled = canEdit
-        binding.addLabelIcon.isEnabled = canEdit
-        binding.addSubtaskButton.isEnabled = canEdit
+        val canManageTask = currentUserRole == "leader" || currentUserRole == "co-leader"
+
+        binding.statusDropdown.isEnabled = canManageTask || isAssigned
+        binding.taskTitleInput.isEnabled = canManageTask
+        binding.taskDescriptionInput.isEnabled = canManageTask
+        binding.dueDateInput.isEnabled = canManageTask
+        binding.addAssigneeIcon.isEnabled = canManageTask
+        binding.addLabelIcon.isEnabled = canManageTask
+        binding.addSubtaskButton.isEnabled = canManageTask
 
         binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(originalTask!!.dueDate))
 
@@ -159,13 +162,13 @@ class TaskDetailActivity : AppCompatActivity() {
         }
 
         binding.dueDateInput.setOnClickListener {
-            if (currentUserId == groupLeaderId) {
+            if (currentUserRole == "leader" || currentUserRole == "co-leader") {
                 showDatePickerDialog()
             }
         }
 
         binding.addAssigneeIcon.setOnClickListener {
-            if (currentUserId == groupLeaderId) {
+            if (currentUserRole == "leader" || currentUserRole == "co-leader") {
                 showEditAssignmentsDialog()
             }
         }
@@ -276,6 +279,7 @@ class TaskDetailActivity : AppCompatActivity() {
         labelsRecyclerView.adapter = adapter
 
         AlertDialog.Builder(this)
+            .setTitle("Select Labels")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val newLabelIds = adapter.getSelectedLabelIds()

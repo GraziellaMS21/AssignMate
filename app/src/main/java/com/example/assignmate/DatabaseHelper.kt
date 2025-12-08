@@ -187,6 +187,20 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db?.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_GROUPS")
         onCreate(db)
     }
+
+    fun getRoleForUserInGroup(userId: Int, groupId: Long): String? {
+        val db = this.readableDatabase
+        val columns = arrayOf(KEY_ROLE)
+        val selection = "$KEY_USER_ID = ? AND $KEY_GROUP_ID = ?"
+        val selectionArgs = arrayOf(userId.toString(), groupId.toString())
+        val cursor = db.query(TABLE_USER_GROUPS, columns, selection, selectionArgs, null, null, null)
+        var role: String? = null
+        if (cursor.moveToFirst()) {
+            role = cursor.getString(cursor.getColumnIndexOrThrow(KEY_ROLE))
+        }
+        cursor.close()
+        return role
+    }
     
     fun getTasksForGroup(groupId: Long, query: String? = null): List<Task> {
         val tasks = mutableListOf<Task>()
