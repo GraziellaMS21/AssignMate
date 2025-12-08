@@ -1,8 +1,10 @@
 package com.example.assignmate
 
+import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Patterns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -14,6 +16,18 @@ class RegisterActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val sharedPreferences = getSharedPreferences("AssignMatePrefs", Context.MODE_PRIVATE)
+        val loggedInUserId = sharedPreferences.getInt("LOGGED_IN_USER_ID", -1)
+
+        if (loggedInUserId != -1) {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.putExtra("USER_ID", loggedInUserId)
+            startActivity(intent)
+            finish()
+            return
+        }
+
         setContentView(R.layout.activity_register)
 
         databaseHelper = DatabaseHelper(this)
@@ -33,6 +47,16 @@ class RegisterActivity : AppCompatActivity() {
 
             if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (password.length < 8) {
+                Toast.makeText(this, "Password must be at least 8 characters long", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
