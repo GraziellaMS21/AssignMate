@@ -47,7 +47,12 @@ class TaskAdapter(
             val context = itemView.context
             binding.taskName.text = task.name
             binding.taskDescription.text = task.description
-            binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
+            if (task.dueDate != 0L) {
+                binding.dueDate.visibility = View.VISIBLE
+                binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
+            } else {
+                binding.dueDate.visibility = View.GONE
+            }
 
             binding.status.text = task.status
 
@@ -60,7 +65,7 @@ class TaskAdapter(
             binding.status.setTextColor(ContextCompat.getColor(context, statusColor))
             binding.status.setBackgroundResource(statusBackground)
 
-            if (task.dueDate < System.currentTimeMillis() && task.status != "Complete") {
+            if (task.dueDate != 0L && task.dueDate < System.currentTimeMillis() && task.status != "Complete") {
                 binding.overdueIndicator.visibility = View.VISIBLE
             } else {
                 binding.overdueIndicator.visibility = View.GONE

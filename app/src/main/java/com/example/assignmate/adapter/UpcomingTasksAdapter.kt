@@ -7,7 +7,9 @@ import com.example.assignmate.databinding.ItemUpcomingTaskBinding
 import com.example.assignmate.model.Task
 import java.util.concurrent.TimeUnit
 
-class UpcomingTasksAdapter(private val tasks: List<Task>, private val onTaskClicked: (Task) -> Unit) : RecyclerView.Adapter<UpcomingTasksAdapter.UpcomingTaskViewHolder>() {
+class UpcomingTasksAdapter(tasks: List<Task>, private val onTaskClicked: (Task) -> Unit) : RecyclerView.Adapter<UpcomingTasksAdapter.UpcomingTaskViewHolder>() {
+
+    private val filteredTasks = tasks.filter { it.dueDate != 0L }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UpcomingTaskViewHolder {
         val binding = ItemUpcomingTaskBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -15,11 +17,11 @@ class UpcomingTasksAdapter(private val tasks: List<Task>, private val onTaskClic
     }
 
     override fun onBindViewHolder(holder: UpcomingTaskViewHolder, position: Int) {
-        val task = tasks[position]
+        val task = filteredTasks[position]
         holder.bind(task)
     }
 
-    override fun getItemCount() = tasks.size
+    override fun getItemCount() = filteredTasks.size
 
     inner class UpcomingTaskViewHolder(private val binding: ItemUpcomingTaskBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(task: Task) {

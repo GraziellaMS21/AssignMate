@@ -20,7 +20,7 @@ class GroupAdapter(
     private val onFavouriteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
-    private var allGroups: List<Group> = groups
+    private var allGroups: List<Group> = ArrayList(groups)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
         val binding = ItemGroupCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -35,29 +35,15 @@ class GroupAdapter(
     override fun getItemCount() = groups.size
 
     fun setGroups(groups: List<Group>){
-        this.allGroups = groups
-        this.groups.clear()
-        this.groups.addAll(groups)
-        notifyDataSetChanged()
+        this.allGroups = ArrayList(groups)
+        filter("") // Initially show all groups
     }
 
-    fun filterAndSort(query: String, filter: String, sortBy: String) {
+    fun filter(query: String) {
         val filteredList = allGroups.filter { group ->
-            val matchesQuery = group.name.contains(query, ignoreCase = true) ||
+            group.name.contains(query, ignoreCase = true) ||
                     group.description.contains(query, ignoreCase = true)
-            val matchesFilter = when (filter) {
-                "Favourite" -> group.isFavourite
-                else -> true
-            }
-            matchesQuery && matchesFilter
-        }.toMutableList()
-
-        when (sortBy) {
-            "last_updated" -> filteredList.sortByDescending { it.lastUpdated }
-            "most_tasks" -> filteredList.sortByDescending { it.assignedTasksCount }
-            else -> filteredList.sortByDescending { it.id }
         }
-
         groups.clear()
         groups.addAll(filteredList)
         notifyDataSetChanged()

@@ -711,13 +711,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return leaderId
     }
 
-    fun createTask(taskName: String, taskDescription: String, groupId: Long, dueDate: Long): Long {
+    fun createTask(taskName: String, taskDescription: String?, groupId: Long, dueDate: Long?): Long {
         val db = this.writableDatabase
         val values = ContentValues()
         values.put(KEY_TASK_NAME, taskName)
         values.put(KEY_TASK_DESCRIPTION, taskDescription)
         values.put(KEY_TASK_GROUP_ID, groupId)
-        values.put(KEY_DUE_DATE, dueDate)
+        if (dueDate != null) {
+            values.put(KEY_DUE_DATE, dueDate)
+        } else {
+            values.putNull(KEY_DUE_DATE)
+        }
         values.put(KEY_STATUS, "Not Started") // Default status
         updateLastUpdated(groupId)
         return db.insert(TABLE_TASKS, null, values)
@@ -875,14 +879,18 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return comments
     }
 
-    fun updateTask(taskId: Long, title: String, description: String, dueDate: Long, status: String, assignedTo: List<Int>?) {
+    fun updateTask(taskId: Long, title: String, description: String?, dueDate: Long?, status: String, assignedTo: List<Int>?) {
         val db = this.writableDatabase
         db.beginTransaction()
         try {
             val values = ContentValues().apply {
                 put(KEY_TASK_NAME, title)
                 put(KEY_TASK_DESCRIPTION, description)
-                put(KEY_DUE_DATE, dueDate)
+                if (dueDate != null) {
+                    put(KEY_DUE_DATE, dueDate)
+                } else {
+                    putNull(KEY_DUE_DATE)
+                }
                 put(KEY_STATUS, status)
             }
             db.update(TABLE_TASKS, values, "$KEY_TASK_ID = ?", arrayOf(taskId.toString()))

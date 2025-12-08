@@ -2,6 +2,7 @@ package com.example.assignmate
 
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.DialogInterface
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -98,7 +99,11 @@ class TaskDetailActivity : AppCompatActivity() {
         binding.addLabelIcon.isEnabled = canManageTask
         binding.addSubtaskButton.isEnabled = canManageTask
 
-        binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(originalTask!!.dueDate))
+        if (originalTask!!.dueDate != 0L) {
+            binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(originalTask!!.dueDate))
+        } else {
+            binding.dueDateInput.setText("")
+        }
 
         updateAssignedMembersChips()
     }
@@ -227,7 +232,9 @@ class TaskDetailActivity : AppCompatActivity() {
 
     private fun showDatePickerDialog() {
         val calendar = Calendar.getInstance()
-        calendar.timeInMillis = modifiedTask!!.dueDate
+        if (modifiedTask?.dueDate != null && modifiedTask!!.dueDate != 0L) {
+            calendar.timeInMillis = modifiedTask!!.dueDate
+        }
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH)
         val day = calendar.get(Calendar.DAY_OF_MONTH)
@@ -240,6 +247,13 @@ class TaskDetailActivity : AppCompatActivity() {
             binding.dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(modifiedTask!!.dueDate))
             checkForChanges()
         }, year, month, day)
+
+        datePickerDialog.setButton(DialogInterface.BUTTON_NEUTRAL, "Clear") { _, _ ->
+            modifiedTask = modifiedTask?.copy(dueDate = 0L)
+            binding.dueDateInput.setText("")
+            checkForChanges()
+        }
+
         datePickerDialog.show()
     }
 
@@ -328,12 +342,31 @@ class TaskDetailActivity : AppCompatActivity() {
             return
         }
 
-        databaseHelper.updateTask(taskId, newTitle, newDescription, modifiedTask!!.dueDate, modifiedTask!!.status, modifiedTask!!.assignedTo)
+        val dueDate = if (modifiedTask!!.dueDate == 0L) null else modifiedTask!!.dueDate
+
+        databaseHelper.updateTask(taskId, newTitle, newDescription, dueDate, modifiedTask!!.status, modifiedTask!!.assignedTo)
         notifyUsersOfChanges()
         taskUpdated = true
         hasUnsavedChanges = false
         Toast.makeText(this, "Changes saved", Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    private fun deleteTask() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Task")
+            .setMessage("Are you sure you want to delete this task?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (databaseHelper.deleteTask(taskId)) {
+                    Toast.makeText(this, "Task deleted", Toast.LENGTH_SHORT).show()
+                    taskUpdated = true // To trigger a refresh in the previous screen
+                    finish()
+                } else {
+                    Toast.makeText(this, "Failed to delete task", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun notifyUsersOfChanges(){
@@ -381,6 +414,10 @@ class TaskDetailActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_save_task -> {
                 saveChanges()
+                true
+            }
+            R.id.action_delete_task -> {
+                deleteTask()
                 true
             }
             android.R.id.home -> {

@@ -69,47 +69,22 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
     }
 
     private fun setupFilterAndSort(){
-        val filterOptions = arrayOf("All", "Favourite")
-        val filterAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
-        binding.filterDropdown.setAdapter(filterAdapter)
-
-        val sortOptions = arrayOf("Date Created", "Last Updated", "Most Tasks Assigned")
-        val sortAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, sortOptions)
-        binding.sortDropdown.setAdapter(sortAdapter)
-        binding.sortDropdown.setText(sortOptions[0], false)
+        val filterOptions = arrayOf("All", "Favourite", "Date Created", "Last Updated", "Most Tasks Assigned")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
+        binding.filterDropdown.setAdapter(adapter)
 
         binding.searchInput.addTextChangedListener(object: TextWatcher{
             override fun afterTextChanged(s: Editable?) {
-                filterAndSortGroups()
+                val query = s.toString()
+                groupAdapter.filter(query)
+                updateUI()
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
-        binding.filterDropdown.setOnItemClickListener { _, _, _, _ ->
-            filterAndSortGroups()
-        }
-
-        binding.sortDropdown.setOnItemClickListener { _, _, _, _ ->
-            // When sort order changes, we should reload from the DB to get the correct order
+        binding.filterDropdown.setOnItemClickListener { _, _, position, _ ->
             loadGroups()
-        }
-    }
-
-    private fun filterAndSortGroups(){
-        val query = binding.searchInput.text.toString()
-        val filter = binding.filterDropdown.text.toString()
-        val sortBy = getCurrentSortBy()
-        // This call will now just filter the currently loaded (and sorted) list
-        groupAdapter.filterAndSort(query, filter, sortBy)
-        updateUI() // Ensure empty view is shown if filter results are empty
-    }
-
-    private fun getCurrentSortBy(): String {
-        return when (binding.sortDropdown.text.toString()) {
-            "Last Updated" -> "last_updated"
-            "Most Tasks Assigned" -> "most_tasks"
-            else -> "date"
         }
     }
 
@@ -157,13 +132,27 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
     }
 
     private fun loadGroups() {
-        val sortBy = getCurrentSortBy()
+        val selection = binding.filterDropdown.text.toString()
+        val sortBy = when (selection) {
+            "Last Updated" -> "last_updated"
+            "Most Tasks Assigned" -> "most_tasks"
+            else -> "date" // Default sort by date
+        }
+        val onlyFavourites = selection == "Favourite"
+
         lifecycleScope.launch(Dispatchers.IO) {
-            val userGroups = databaseHelper.getGroupsForUser(currentUserId, sortBy)
+            val userGroups = if (onlyFavourites) {
+                databaseHelper.getFavouriteGroups(currentUserId)
+            } else {
+                databaseHelper.getGroupsForUser(currentUserId, sortBy)
+            }
+
             withContext(Dispatchers.Main) {
                 groupAdapter.setGroups(userGroups)
-                // After loading from DB, apply current search/filter
-                filterAndSortGroups()
+                // Apply current search query after loading
+                val query = binding.searchInput.text.toString()
+                groupAdapter.filter(query)
+                updateUI()
             }
         }
     }
@@ -221,7 +210,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
             val groupDescription = groupDescriptionInput.text.toString()
             val groupCode = groupCodeText.text.toString().substringAfter("Group Code: ")
 
-            if (groupName.isNotEmpty() && groupDescription.isNotEmpty() && groupCode.length == 6) {
+            if (groupName.isNotEmpty() && groupCode.length == 6) {
                 val newGroupId = databaseHelper.createGroup(groupName, groupDescription, currentUserId, groupCode)
                 if (newGroupId != -1L) {
                     Toast.makeText(this, "Group created successfully", Toast.LENGTH_SHORT).show()
@@ -233,7 +222,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
                     Toast.makeText(this, "Failed to create group. The code might already exist.", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please enter a group name", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -312,7 +301,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
             val newGroupName = groupNameInput.text.toString()
             val newGroupDescription = groupDescriptionInput.text.toString()
 
-            if (newGroupName.isNotEmpty() && newGroupDescription.isNotEmpty()) {
+            if (newGroupName.isNotEmpty()) {
                 if (databaseHelper.updateGroup(group.id, newGroupName, newGroupDescription)) {
                     Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show()
                     loadGroups()
@@ -320,7 +309,7 @@ class GroupActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItem
                     Toast.makeText(this, "Failed to update group", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Group name cannot be empty", Toast.LENGTH_SHORT).show()
             }
         }
 

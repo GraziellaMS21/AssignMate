@@ -111,6 +111,13 @@
                     android:src="@drawable/ic_person"
                     app:tint="?attr/colorControlNormal" />
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Assign to"
+                    android:textAppearance="?attr/textAppearanceBody1" />
+
                 <HorizontalScrollView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -141,6 +148,13 @@
                     android:focusable="true"
                     android:src="@drawable/ic_label"
                     app:tint="?attr/colorControlNormal" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Add Labels"
+                    android:textAppearance="?attr/textAppearanceBody1" />
 
                 <HorizontalScrollView
                     android:layout_width="0dp"

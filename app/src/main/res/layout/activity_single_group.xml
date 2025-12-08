@@ -28,11 +28,14 @@
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabs"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:backgroundTint="#FFF8F0" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="#FFF8F0"
+            android:backgroundTint="#FFF8F0"
             android:orientation="horizontal"
             android:padding="8dp">
 
@@ -83,6 +86,7 @@
         android:contentDescription="Add Task"
         android:src="@drawable/ic_add"
         android:visibility="gone"
+        app:backgroundTint="#F28A30"
         tools:visibility="visible" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

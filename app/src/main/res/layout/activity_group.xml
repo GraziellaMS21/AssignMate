@@ -109,27 +109,10 @@
 
                 <AutoCompleteTextView
                     android:id="@+id/filter_dropdown"
-                    android:layout_width="wrap_content"
+                    android:layout_width="150dp"
                     android:layout_height="wrap_content"
                     android:inputType="none"
-                    android:minWidth="90dp"
                     android:text="All" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/sort_dropdown_layout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp">
-
-                <AutoCompleteTextView
-                    android:id="@+id/sort_dropdown"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:inputType="none"
-                    android:minWidth="110dp"
-                    android:text="Sort by" />
             </com.google.android.material.textfield.TextInputLayout>
 
         </LinearLayout>

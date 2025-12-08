@@ -167,7 +167,7 @@ class SingleGroupActivity : AppCompatActivity() {
         builder.setPositiveButton("Save") { dialog, _ ->
             val newGroupName = groupNameInput.text.toString()
             val newGroupDescription = groupDescriptionInput.text.toString()
-            if (newGroupName.isNotEmpty() && newGroupDescription.isNotEmpty()) {
+            if (newGroupName.isNotEmpty()) {
                 if (databaseHelper.updateGroup(groupId, newGroupName, newGroupDescription)) {
                     Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show()
                     supportActionBar?.title = newGroupName
@@ -376,11 +376,13 @@ class SingleGroupActivity : AppCompatActivity() {
             val taskDescription = taskDescriptionInput.text.toString()
             val dueDate = dueDateInput.text.toString()
 
-            if (taskName.isNotEmpty() && taskDescription.isNotEmpty() && dueDate.isNotEmpty()) {
+            if (taskName.isNotEmpty()) {
                 val calendar = Calendar.getInstance()
-                val dateParts = dueDate.split("/")
-                calendar.set(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
-                val dueDateMillis = calendar.timeInMillis
+                if (dueDate.isNotEmpty()) {
+                    val dateParts = dueDate.split("/")
+                    calendar.set(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
+                }
+                val dueDateMillis = if (dueDate.isNotEmpty()) calendar.timeInMillis else 0L
 
                 val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, dueDateMillis)
                 if (newTaskId != -1L) {
@@ -396,7 +398,7 @@ class SingleGroupActivity : AppCompatActivity() {
                     Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please enter a task name", Toast.LENGTH_SHORT).show()
             }
             dialog.dismiss()
         }
