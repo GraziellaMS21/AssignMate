@@ -10,7 +10,8 @@ import com.example.assignmate.model.Label
 
 class SelectableLabelAdapter(
     private val allLabels: List<Label>,
-    private val selectedLabelIds: MutableSet<Long>
+    // FIX: Changed MutableSet<Long> to MutableSet<String>
+    private val selectedLabelIds: MutableSet<String>
 ) : RecyclerView.Adapter<SelectableLabelAdapter.SelectableLabelViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectableLabelViewHolder {
@@ -25,13 +26,19 @@ class SelectableLabelAdapter(
 
     override fun getItemCount() = allLabels.size
 
-    fun getSelectedLabelIds(): Set<Long> = selectedLabelIds
+    // FIX: Changed return type to Set<String>
+    fun getSelectedLabelIds(): Set<String> = selectedLabelIds
 
     inner class SelectableLabelViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val labelCheckbox: CheckBox = itemView.findViewById(R.id.label_checkbox)
 
         fun bind(label: Label) {
             labelCheckbox.text = label.name
+
+            // FIX: Remove listener temporarily to set state without triggering logic
+            labelCheckbox.setOnCheckedChangeListener(null)
+
+            // Now safe because both label.id and the Set use Strings
             labelCheckbox.isChecked = selectedLabelIds.contains(label.id)
 
             labelCheckbox.setOnCheckedChangeListener { _, isChecked ->

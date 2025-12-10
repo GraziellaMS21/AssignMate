@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "327521239426",
-    "project_id": "assignmate-acb67",
-    "storage_bucket": "assignmate-acb67.firebasestorage.app"
+    "project_number": "571170445954",
+    "project_id": "assignmate-b138c",
+    "storage_bucket": "assignmate-b138c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:327521239426:android:120144eb074d3d4297cf9b",
+        "mobilesdk_app_id": "1:571170445954:android:84ceb2ee468588e182b29b",
         "android_client_info": {
           "package_name": "com.example.assignmate"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCORDbF4HTtRQH_FyKugE7n2vb-R-Tpmxg"
+          "current_key": "AIzaSyDqISZhEX-vzaTDc9vKsRkZbraMlFLYWeU"
         }
       ],
       "services": {

@@ -9,7 +9,6 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -27,11 +26,20 @@ import com.example.assignmate.adapter.ManageLabelsAdapter
 import com.example.assignmate.adapter.NewSubtaskAdapter
 import com.example.assignmate.adapter.SelectableLabelAdapter
 import com.example.assignmate.databinding.ActivitySingleGroupBinding
+import com.example.assignmate.fragments.GroupTasksFragment
+import com.example.assignmate.fragments.MembersFragment
 import com.example.assignmate.model.Label
+import com.example.assignmate.model.Member
 import com.example.assignmate.model.NewSubtask
+import com.example.assignmate.model.Task
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import yuku.ambilwarna.AmbilWarnaDialog
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -40,40 +48,45 @@ import java.util.Locale
 class SingleGroupActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySingleGroupBinding
-    private lateinit var databaseHelper: DatabaseHelper
     private lateinit var notificationHelper: NotificationHelper
-    private var groupId: Long = -1
-    private var currentUserId: Int = -1
-    private lateinit var viewPagerAdapter: ViewPagerAdapter
+    private val db = FirebaseDatabase.getInstance().reference
+    private val auth = FirebaseAuth.getInstance()
+
+    private var groupId: String = ""
+    private var currentUserId: String = ""
+    private var groupName: String = "Group"
+
     private var defaultColor: Int = 0
     private var currentUserRole: String? = null
+    private var isGroupFavourite: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySingleGroupBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        databaseHelper = DatabaseHelper(this)
         notificationHelper = NotificationHelper(this)
-        groupId = intent.getLongExtra("GROUP_ID", -1)
-        currentUserId = intent.getIntExtra("USER_ID", -1)
-        val groupName = intent.getStringExtra("GROUP_NAME")
-        currentUserRole = databaseHelper.getRoleForUserInGroup(currentUserId, groupId)
+
+        groupId = intent.getStringExtra("GROUP_ID") ?: ""
+        currentUserId = intent.getStringExtra("USER_ID") ?: ""
+        groupName = intent.getStringExtra("GROUP_NAME") ?: "Group"
+
+        if (groupId.isEmpty() || currentUserId.isEmpty()) {
+            finish()
+            return
+        }
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = groupName
 
-        if (currentUserRole == "leader" || currentUserRole == "co-leader") {
-            binding.fabAddTaskButton.visibility = View.VISIBLE
-        }
+        fetchUserRoleAndStatus()
 
         binding.fabAddTaskButton.setOnClickListener {
             showCreateTaskDialog()
         }
 
-        viewPagerAdapter = ViewPagerAdapter(this)
-        binding.viewPager.adapter = viewPagerAdapter
+        binding.viewPager.adapter = ViewPagerAdapter(this)
 
         TabLayoutMediator(binding.tabs, binding.viewPager) { tab, position ->
             tab.text = when (position) {
@@ -86,20 +99,40 @@ class SingleGroupActivity : AppCompatActivity() {
         setupFilter()
     }
 
+    // --- SETUP & UTILS ---
+
+    private fun fetchUserRoleAndStatus() {
+        db.child("Groups").child(groupId).child("members").child(currentUserId).get().addOnSuccessListener { snapshot ->
+            val roleValue = snapshot.value
+            currentUserRole = if (roleValue is Boolean && roleValue) {
+                "leader"
+            } else {
+                roleValue.toString()
+            }
+            binding.fabAddTaskButton.visibility = if (currentUserRole == "leader" || currentUserRole == "co-leader") View.VISIBLE else View.GONE
+            invalidateOptionsMenu()
+        }
+
+        db.child("Users").child(currentUserId).child("favourites").child(groupId).addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                isGroupFavourite = snapshot.exists()
+                invalidateOptionsMenu()
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
     private fun setupFilter() {
         val filterOptions = arrayOf("All", "By Assignee", "By Label")
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, filterOptions)
         binding.filterDropdown.setAdapter(adapter)
 
-        val textWatcher = object : TextWatcher {
+        binding.searchInput.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { filterTasks() }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                filterTasks()
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        }
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
-        binding.searchInput.addTextChangedListener(textWatcher)
         binding.filterDropdown.setOnItemClickListener { _, _, _, _ -> filterTasks() }
     }
 
@@ -112,6 +145,8 @@ class SingleGroupActivity : AppCompatActivity() {
         }
     }
 
+    // --- MENU ---
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.single_group_menu, menu)
         return true
@@ -119,15 +154,11 @@ class SingleGroupActivity : AppCompatActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
         val favouriteMenuItem = menu?.findItem(R.id.action_add_to_favourite)
-        if (databaseHelper.isGroupFavourite(currentUserId, groupId)) {
-            favouriteMenuItem?.title = "Remove from Favourites"
-        } else {
-            favouriteMenuItem?.title = "Add to Favourites"
-        }
+        favouriteMenuItem?.title = if (isGroupFavourite) "Remove from Favourites" else "Add to Favourites"
 
         val canManageGroup = currentUserRole == "leader" || currentUserRole == "co-leader"
         menu?.findItem(R.id.action_edit_group)?.isVisible = canManageGroup
-        menu?.findItem(R.id.action_delete_group)?.isVisible = canManageGroup
+        menu?.findItem(R.id.action_delete_group)?.isVisible = currentUserRole == "leader"
         menu?.findItem(R.id.action_manage_labels)?.isVisible = canManageGroup
         menu?.findItem(R.id.action_add_members)?.isVisible = canManageGroup
 
@@ -147,65 +178,65 @@ class SingleGroupActivity : AppCompatActivity() {
         return true
     }
 
+    // --- ACTIONS ---
+
     private fun toggleFavourite() {
-        if (databaseHelper.isGroupFavourite(currentUserId, groupId)) {
-            databaseHelper.removeFavouriteGroup(currentUserId, groupId)
-            Toast.makeText(this, "Group removed from favorites", Toast.LENGTH_SHORT).show()
+        val favRef = db.child("Users").child(currentUserId).child("favourites").child(groupId)
+        if (isGroupFavourite) {
+            favRef.removeValue()
+            Toast.makeText(this, "Removed from favourites", Toast.LENGTH_SHORT).show()
         } else {
-            databaseHelper.addFavouriteGroup(currentUserId, groupId)
-            Toast.makeText(this, "Group added to favorites", Toast.LENGTH_SHORT).show()
+            favRef.setValue(true)
+            Toast.makeText(this, "Added to favourites", Toast.LENGTH_SHORT).show()
         }
-        invalidateOptionsMenu()
     }
 
     private fun showEditGroupDialog() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Edit Group")
-
         val view = layoutInflater.inflate(R.layout.dialog_create_group, null)
         builder.setView(view)
 
         val groupNameInput = view.findViewById<EditText>(R.id.group_name_input)
-        val groupDescriptionInput = view.findViewById<EditText>(R.id.group_description_input)
+        val groupDescInput = view.findViewById<EditText>(R.id.group_description_input)
 
-        val group = databaseHelper.getGroup(groupId)
-        groupNameInput.setText(group?.name)
-        groupDescriptionInput.setText(group?.description)
+        db.child("Groups").child(groupId).get().addOnSuccessListener { snapshot ->
+            if (snapshot.exists()) {
+                groupNameInput.setText(snapshot.child("name").value.toString())
+                groupDescInput.setText(snapshot.child("description").value.toString())
+            }
+        }
 
         builder.setPositiveButton("Save") { dialog, _ ->
-            val newGroupName = groupNameInput.text.toString()
-            val newGroupDescription = groupDescriptionInput.text.toString()
-            if (newGroupName.isNotEmpty()) {
-                if (databaseHelper.updateGroup(groupId, newGroupName, newGroupDescription)) {
-                    Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show()
-                    supportActionBar?.title = newGroupName
-                } else {
-                    Toast.makeText(this, "Failed to update group", Toast.LENGTH_SHORT).show()
+            val newName = groupNameInput.text.toString()
+            val newDesc = groupDescInput.text.toString()
+            if (newName.isNotEmpty()) {
+                val updates = mapOf("name" to newName, "description" to newDesc)
+                db.child("Groups").child(groupId).updateChildren(updates).addOnSuccessListener {
+                    Toast.makeText(this, "Updated!", Toast.LENGTH_SHORT).show()
+                    supportActionBar?.title = newName
                 }
             }
             dialog.dismiss()
         }
         builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-
         builder.show()
     }
 
     private fun showDeleteGroupDialog() {
         AlertDialog.Builder(this)
             .setTitle("Delete Group")
-            .setMessage("Are you sure you want to delete this group?")
+            .setMessage("Are you sure?")
             .setPositiveButton("Delete") { _, _ ->
-                if (databaseHelper.deleteGroup(groupId)) {
-                    Toast.makeText(this, "Group deleted successfully", Toast.LENGTH_SHORT).show()
+                db.child("Groups").child(groupId).removeValue().addOnSuccessListener {
+                    Toast.makeText(this, "Deleted!", Toast.LENGTH_SHORT).show()
                     finish()
-                } else {
-                    Toast.makeText(this, "Failed to delete group", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+            .setNegativeButton("Cancel", null).show()
     }
 
+    // --- LABEL MANAGEMENT ---
     private fun showManageLabelsDialog() {
         val builder = AlertDialog.Builder(this)
         val view = layoutInflater.inflate(R.layout.dialog_manage_labels, null)
@@ -213,19 +244,36 @@ class SingleGroupActivity : AppCompatActivity() {
 
         val labelsRecyclerView = view.findViewById<RecyclerView>(R.id.labels_recycler_view)
         val createNewLabelButton = view.findViewById<View>(R.id.create_new_label_button)
+        val labelsList = mutableListOf<Label>()
 
-        val labels = databaseHelper.getAllLabels().toMutableList()
-        val adapter = ManageLabelsAdapter(labels) { label ->
+        labelsRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        val adapter = ManageLabelsAdapter(labelsList) { label ->
             showEditLabelDialog(label) { updatedLabel ->
-                (labelsRecyclerView.adapter as ManageLabelsAdapter).updateLabel(updatedLabel)
+                db.child("Groups").child(groupId).child("labels").child(updatedLabel.id).setValue(updatedLabel)
             }
         }
-        labelsRecyclerView.layoutManager = LinearLayoutManager(this)
         labelsRecyclerView.adapter = adapter
+
+        // Load Labels
+        db.child("Groups").child(groupId).child("labels").addValueEventListener(object : ValueEventListener{
+            override fun onDataChange(snapshot: DataSnapshot) {
+                labelsList.clear()
+                for(child in snapshot.children) {
+                    val label = child.getValue(Label::class.java)
+                    if(label != null) labelsList.add(label)
+                }
+                adapter.notifyDataSetChanged()
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
 
         createNewLabelButton.setOnClickListener {
             showEditLabelDialog(null) { newLabel ->
-                (labelsRecyclerView.adapter as ManageLabelsAdapter).addLabel(newLabel)
+                val key = db.child("Groups").child(groupId).child("labels").push().key ?: return@showEditLabelDialog
+                // Assign the Firebase key as the ID
+                val labelWithId = newLabel.copy(id = key)
+                db.child("Groups").child(groupId).child("labels").child(key).setValue(labelWithId)
             }
         }
 
@@ -246,7 +294,6 @@ class SingleGroupActivity : AppCompatActivity() {
             defaultColor = Color.parseColor(label.color)
             colorPicker?.setBackgroundColor(defaultColor)
         } else {
-            // Set a default color for new labels to orange
             defaultColor = Color.parseColor("#F28A30")
             colorPicker?.setBackgroundColor(defaultColor)
         }
@@ -267,20 +314,8 @@ class SingleGroupActivity : AppCompatActivity() {
             val labelColor = String.format("#%06X", 0xFFFFFF and defaultColor)
 
             if (labelName.isNotEmpty()) {
-                if (label == null) {
-                    val newLabelId = databaseHelper.addLabel(labelName, labelColor)
-                    if (newLabelId != -1L) {
-                        onLabelUpdated(Label(newLabelId, labelName, labelColor))
-                    } else {
-                        Toast.makeText(this, "Failed to create label", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    if (databaseHelper.updateLabel(label.id, labelName, labelColor)) {
-                        onLabelUpdated(Label(label.id, labelName, labelColor))
-                    } else {
-                        Toast.makeText(this, "Failed to update label", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                val id = label?.id ?: "" // Empty string for new, existing string for update
+                onLabelUpdated(Label(id, labelName, labelColor))
             } else {
                 Toast.makeText(this, "Please enter a label name", Toast.LENGTH_SHORT).show()
             }
@@ -295,224 +330,144 @@ class SingleGroupActivity : AppCompatActivity() {
         val view = layoutInflater.inflate(R.layout.dialog_add_member, null)
         builder.setView(view)
 
-        val groupCode = databaseHelper.getGroup(groupId)?.code
         val groupCodeText = view.findViewById<android.widget.TextView>(R.id.group_code_text)
-        groupCodeText.text = "Group Code: $groupCode"
+        db.child("Groups").child(groupId).child("code").get().addOnSuccessListener {
+            val code = it.value.toString()
+            groupCodeText.text = "Group Code: $code"
 
-        view.findViewById<View>(R.id.copy_icon).setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Group Code", groupCode)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Group code copied to clipboard", Toast.LENGTH_SHORT).show()
+            view.findViewById<View>(R.id.copy_icon).setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Group Code", code)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Copied!", Toast.LENGTH_SHORT).show()
+            }
         }
 
         val emailInput = view.findViewById<EditText>(R.id.email_input)
 
         builder.setPositiveButton("Add") { dialog, _ ->
-            val email = emailInput.text.toString()
+            val email = emailInput.text.toString().trim()
             if (email.isNotEmpty()) {
-                val newMemberId = databaseHelper.getUserId(email)
-                if (newMemberId != -1) {
-                    if (databaseHelper.addMemberToGroup(newMemberId, groupId)) {
-                        Toast.makeText(this, "Member added successfully", Toast.LENGTH_SHORT).show()
-                        notificationHelper.sendNotification(newMemberId, "New Group Member", "You have been added to a new group.", groupId.toInt())
-                        val membersFragment = supportFragmentManager.findFragmentByTag("f1") as? MembersFragment
-                        membersFragment?.loadMembers()
-                    } else {
-                        Toast.makeText(this, "Member is already in the group", Toast.LENGTH_SHORT).show()
+                db.child("Users").orderByChild("email").equalTo(email).addListenerForSingleValueEvent(object : ValueEventListener{
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if(snapshot.exists()){
+                            for(child in snapshot.children){
+                                val newMemberId = child.key ?: continue
+                                db.child("Groups").child(groupId).child("members").child(newMemberId).setValue("member")
+                                db.child("Users").child(newMemberId).child("groups").child(groupId).setValue(true)
+                                Toast.makeText(this@SingleGroupActivity, "Member added", Toast.LENGTH_SHORT).show()
+                                notificationHelper.sendNotification(newMemberId, "New Group", "Added to group $groupName", 1)
+                            }
+                        } else {
+                            Toast.makeText(this@SingleGroupActivity, "User not found", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                } else {
-                    Toast.makeText(this, "User not found", Toast.LENGTH_SHORT).show()
-                }
+                    override fun onCancelled(error: DatabaseError) {}
+                })
             }
             dialog.dismiss()
         }
         builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-
         builder.show()
     }
 
     private fun showCreateTaskDialog() {
-        Log.d("CreateTaskDialog", "showCreateTaskDialog called")
+        db.child("Groups").child(groupId).child("members").get().addOnSuccessListener { snapshot ->
+            val memberIds = snapshot.children.mapNotNull { it.key }
+            if (memberIds.isEmpty()) {
+                showActualCreateTaskDialog(emptyList())
+                return@addOnSuccessListener
+            }
+
+            val loadedMembers = mutableListOf<Member>()
+            var count = 0
+            for (uid in memberIds) {
+                db.child("Users").child(uid).get().addOnSuccessListener { userSnap ->
+                    val name = userSnap.child("username").value.toString()
+                    loadedMembers.add(Member(uid, name, "member"))
+                    count++
+                    if (count == memberIds.size) {
+                        showActualCreateTaskDialog(loadedMembers)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showActualCreateTaskDialog(members: List<Member>) {
         val builder = AlertDialog.Builder(this)
         val view = layoutInflater.inflate(R.layout.dialog_create_task, null)
         builder.setView(view)
 
-        // View references
         val taskNameInput = view.findViewById<EditText>(R.id.task_name_input)
-        val taskDescriptionInput = view.findViewById<EditText>(R.id.task_description_input)
+        val taskDescInput = view.findViewById<EditText>(R.id.task_description_input)
         val dueDateInput = view.findViewById<EditText>(R.id.due_date_input)
         val assignToLayout = view.findViewById<View>(R.id.assign_to_layout)
-        val assignedMembersChipGroup = view.findViewById<ChipGroup>(R.id.assigned_members_chip_group)
-        val addLabelLayout = view.findViewById<View>(R.id.add_label_layout)
-        val labelsChipGroup = view.findViewById<ChipGroup>(R.id.labels_chip_group)
-        val subtasksRecyclerView = view.findViewById<RecyclerView>(R.id.subtasks_recycler_view)
-        val addSubtaskButton = view.findViewById<View>(R.id.add_subtask_button)
+        val chipGroup = view.findViewById<ChipGroup>(R.id.assigned_members_chip_group)
 
-        // Data holders
-        var dueDateMillis: Long = 0
-        val assignedTo = mutableListOf<Int>()
-        val selectedLabelIds = mutableSetOf<Long>()
-        val subtasks = mutableListOf<NewSubtask>()
+        var dateString = ""
+        val assignedIds = mutableListOf<String>()
 
-        // Setup Subtasks
-        val subtaskAdapter = NewSubtaskAdapter(subtasks)
-        subtasksRecyclerView.layoutManager = LinearLayoutManager(this)
-        subtasksRecyclerView.adapter = subtaskAdapter
-
-        // Setup Listeners
         dueDateInput.setOnClickListener {
-            val calendar = Calendar.getInstance()
-            if (dueDateMillis != 0L) {
-                calendar.timeInMillis = dueDateMillis
-            }
-            val year = calendar.get(Calendar.YEAR)
-            val month = calendar.get(Calendar.MONTH)
-            val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-            val datePickerDialog = DatePickerDialog(this, { _, selectedYear, selectedMonth, selectedDay ->
-                val newDueDateCalendar = Calendar.getInstance()
-                newDueDateCalendar.set(selectedYear, selectedMonth, selectedDay)
-                dueDateMillis = newDueDateCalendar.timeInMillis
-                dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(dueDateMillis))
-            }, year, month, day)
-
-            datePickerDialog.setButton(DatePickerDialog.BUTTON_NEUTRAL, "Clear") { _, _ ->
-                dueDateMillis = 0L
-                dueDateInput.setText("")
-            }
-            datePickerDialog.show()
+            val c = Calendar.getInstance()
+            DatePickerDialog(this, { _, y, m, d ->
+                c.set(y, m, d)
+                dateString = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(c.time)
+                dueDateInput.setText(dateString)
+            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
         }
 
         assignToLayout.setOnClickListener {
-            val members = databaseHelper.getGroupMembers(groupId)
-            val memberNames = members.map { it.name }.toTypedArray()
-            val selectedItems = BooleanArray(memberNames.size) { i -> members[i].id in assignedTo }
+            val names: Array<CharSequence> = members.map { it.name }.toTypedArray()
+            val checked = BooleanArray(members.size) { members[it].id in assignedIds }
 
             AlertDialog.Builder(this)
-                .setTitle("Assign Members")
-                .setMultiChoiceItems(memberNames, selectedItems) { _, which, isChecked ->
-                    val memberId = members[which].id
-                    if (isChecked) {
-                        if (memberId !in assignedTo) assignedTo.add(memberId)
-                    } else {
-                        assignedTo.remove(memberId)
-                    }
+                .setTitle("Assign")
+                .setMultiChoiceItems(names, checked) { _, which, isChecked ->
+                    val id = members[which].id
+                    if (isChecked) assignedIds.add(id) else assignedIds.remove(id)
                 }
                 .setPositiveButton("OK") { _, _ ->
-                    assignedMembersChipGroup.removeAllViews()
-                    val assignedMembers = members.filter { it.id in assignedTo }
-                    for (member in assignedMembers) {
+                    chipGroup.removeAllViews()
+                    members.filter { it.id in assignedIds }.forEach {
                         val chip = Chip(this)
-                        chip.text = member.name
-                        assignedMembersChipGroup.addView(chip)
+                        chip.text = it.name
+                        chipGroup.addView(chip)
                     }
                 }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-
-        addLabelLayout.setOnClickListener {
-            val allLabels = databaseHelper.getAllLabels()
-            val dialogView = layoutInflater.inflate(R.layout.dialog_select_labels, null)
-            val labelsRecyclerViewDialog = dialogView.findViewById<RecyclerView>(R.id.labels_recycler_view)
-            labelsRecyclerViewDialog.layoutManager = LinearLayoutManager(this)
-
-            // Create a copy of the selected IDs to handle cancellations correctly
-            val tempSelectedLabelIds = selectedLabelIds.toMutableSet()
-            val adapter = SelectableLabelAdapter(allLabels, tempSelectedLabelIds)
-            labelsRecyclerViewDialog.adapter = adapter
-
-            AlertDialog.Builder(this)
-                .setTitle("Select Labels")
-                .setView(dialogView)
-                .setPositiveButton("Save") { _, _ ->
-                    // Update the actual selected IDs set
-                    selectedLabelIds.clear()
-                    selectedLabelIds.addAll(tempSelectedLabelIds)
-
-                    // Update the UI to show the selected labels as chips
-                    labelsChipGroup.removeAllViews()
-                    val selectedLabels = allLabels.filter { it.id in selectedLabelIds }
-                    for (label in selectedLabels) {
-                        val chip = Chip(this)
-                        chip.text = label.name
-                        try {
-                            val color = Color.parseColor(label.color)
-                            chip.chipBackgroundColor = ColorStateList.valueOf(color)
-                        } catch (e: IllegalArgumentException) {
-                            Log.w("CreateTaskDialog", "Invalid color for label: ${label.name}")
-                        }
-                        labelsChipGroup.addView(chip)
-                    }
-                }
-                .setNegativeButton("Cancel", null) // On cancel, changes to tempSelectedLabelIds are discarded
-                .show()
-        }
-
-        addSubtaskButton.setOnClickListener {
-            val subtaskBuilder = AlertDialog.Builder(this)
-            val subtaskView = layoutInflater.inflate(R.layout.dialog_add_subtask, null)
-            subtaskBuilder.setView(subtaskView)
-            val subtaskNameInput = subtaskView.findViewById<EditText>(R.id.subtask_name_input)
-
-            subtaskBuilder.setPositiveButton("Add") { _, _ ->
-                val subtaskName = subtaskNameInput.text.toString()
-                if (subtaskName.isNotEmpty()) {
-                    val newSubtask = NewSubtask(name = subtaskName)
-                    subtaskAdapter.addSubtask(newSubtask)
-                }
-            }
-                .setNegativeButton("Cancel", null)
-                .show()
+                .setNegativeButton("Cancel", null).show()
         }
 
         builder.setPositiveButton("Create") { _, _ ->
-            val taskName = taskNameInput.text.toString()
-            if (taskName.isEmpty()) {
-                Toast.makeText(this, "Task title cannot be empty", Toast.LENGTH_SHORT).show()
-                return@setPositiveButton
-            }
+            val name = taskNameInput.text.toString()
+            if (name.isNotEmpty()) {
+                val taskId = db.child("Tasks").push().key ?: return@setPositiveButton
+                val task = Task(
+                    taskId = taskId,
+                    name = name,
+                    description = taskDescInput.text.toString(),
+                    groupId = groupId,
+                    groupName = groupName,
+                    dueDate = dateString,
+                    status = "Not Started",
+                    assignedToId = if(assignedIds.isNotEmpty()) assignedIds[0] else "",
+                    assignedToName = if(assignedIds.isNotEmpty()) "${assignedIds.size} Assigned" else "Unassigned"
+                )
+                db.child("Tasks").child(taskId).setValue(task)
 
-            val taskDescription = taskDescriptionInput.text.toString()
-            val finalDueDate = if (dueDateMillis == 0L) null else dueDateMillis
-
-            val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, finalDueDate)
-
-            if (newTaskId != -1L) {
-                // Assign members
-                assignedTo.forEach { memberId ->
-                    databaseHelper.assignTaskToUser(newTaskId, memberId)
-                    notificationHelper.sendNotification(memberId, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
+                assignedIds.forEach { uid ->
+                    notificationHelper.sendNotification(uid, "Task Assigned", "New task: $name", 1)
                 }
-
-                // Add labels
-                if (selectedLabelIds.isNotEmpty()) {
-                    databaseHelper.updateTaskLabels(newTaskId, selectedLabelIds)
-                }
-
-                // Add subtasks
-                subtasks.forEach { subtask ->
-                    databaseHelper.createSubtask(newTaskId, subtask.name)
-                }
-
-                Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
-                val tasksFragment = supportFragmentManager.findFragmentByTag("f0") as? GroupTasksFragment
-                tasksFragment?.refreshTasks()
-
-            } else {
-                Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Created!", Toast.LENGTH_SHORT).show()
             }
         }
-            .setNegativeButton("Cancel", null)
-
-        builder.create().show()
-        Log.d("CreateTaskDialog", "Dialog shown")
+        builder.setNegativeButton("Cancel", null).show()
     }
+
+    // --- ADAPTER ---
 
     inner class ViewPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
         override fun getItemCount(): Int = 2
-
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> GroupTasksFragment.newInstance(groupId)

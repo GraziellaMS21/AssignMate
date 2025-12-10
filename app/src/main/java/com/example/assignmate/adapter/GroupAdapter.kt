@@ -1,95 +1,116 @@
 package com.example.assignmate.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.PopupMenu
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.R
-import com.example.assignmate.databinding.ItemGroupCardBinding
 import com.example.assignmate.model.Group
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 class GroupAdapter(
-    private var groups: MutableList<Group>,
-    private val currentUserId: Int,
+    private var groups: List<Group>,
+    private val currentUserId: String,
     private val onGroupClicked: (Group) -> Unit,
     private val onEditClicked: (Group) -> Unit,
-    private val onDeleteClicked: (Group) -> Unit,
-    private val onFavouriteClicked: (Group) -> Unit
+    private val onDeleteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
-    private var allGroups: List<Group> = ArrayList(groups)
+    private var filteredGroups = groups.toMutableList()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
-        val binding = ItemGroupCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return GroupViewHolder(binding)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_group_card, parent, false)
+        return GroupViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
-        val group = groups[position]
-        holder.bind(group)
+        holder.bind(filteredGroups[position])
     }
 
-    override fun getItemCount() = groups.size
+    override fun getItemCount() = filteredGroups.size
 
-    fun setGroups(groups: List<Group>){
-        this.allGroups = ArrayList(groups)
-        filter("") // Initially show all groups
-    }
-
-    fun filter(query: String) {
-        val filteredList = allGroups.filter { group ->
-            group.name.contains(query, ignoreCase = true) ||
-                    group.description.contains(query, ignoreCase = true)
-        }
-        groups.clear()
-        groups.addAll(filteredList)
+    fun setGroups(newGroups: List<Group>) {
+        this.groups = newGroups
+        this.filteredGroups = newGroups.toMutableList()
         notifyDataSetChanged()
     }
 
-    inner class GroupViewHolder(private val binding: ItemGroupCardBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(group: Group) {
-            binding.groupName.text = group.name
-            binding.groupLeader.text = "Group Leader: ${group.leader}"
-            binding.groupMembers.text = "Members: ${group.members.size}"
-            binding.assignedTasks.text = "Assigned Tasks: ${group.assignedTasksCount}"
-            binding.groupDescription.text = group.description
-            binding.lastUpdated.text = "Last updated: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(group.lastUpdated))}"
-            binding.groupProgress.progress = group.progress
+    fun filter(query: String) {
+        filteredGroups = if (query.isEmpty()) {
+            groups.toMutableList()
+        } else {
+            groups.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.description.contains(query, ignoreCase = true)
+            }.toMutableList()
+        }
+        notifyDataSetChanged()
+    }
 
-            binding.root.setOnClickListener {
+    inner class GroupViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val groupName: TextView = itemView.findViewById(R.id.group_name)
+        private val groupLeader: TextView = itemView.findViewById(R.id.group_leader)
+        private val groupDesc: TextView = itemView.findViewById(R.id.group_description)
+        private val optionsMenu: ImageView = itemView.findViewById(R.id.options_menu)
+
+        // TODO: Re-implement stats display. The following fields were removed from Group model:
+        // lastUpdated, assignedTasksCount, progress
+        private val membersCount: TextView? = itemView.findViewById(R.id.group_members_count)
+        // private val lastUpdate: TextView = itemView.findViewById(R.id.last_update_text)
+        // private val tasksCount: TextView? = itemView.findViewById(R.id.group_tasks_count)
+        // private val progressBar: ProgressBar? = itemView.findViewById(R.id.group_progress_bar)
+
+        // TODO: Re-implement favourite feature. '''isFavourite''' was removed from Group model.
+        // private val favIcon: ImageView = itemView.findViewById(R.id.favourite_icon)
+
+        fun bind(group: Group) {
+            groupName.text = group.name
+            groupLeader.text = "Leader: ${group.createdBy}"
+            groupDesc.text = group.description
+
+            // Stats Binding
+            membersCount?.text = "${group.members.size} Members"
+            
+            // TODO: Re-implement last updated display
+            // val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+            // val date = Date(group.lastUpdated)
+            // lastUpdate.text = "Last Update: ${sdf.format(date)}"
+
+            // TODO: Re-implement tasks count and progress bar
+            // tasksCount?.text = "${group.assignedTasksCount} Tasks"
+            // progressBar?.progress = group.progress
+
+            // TODO: Re-implement favourite icon logic
+            // if (group.isFavourite) {
+            //     favIcon.setImageResource(R.drawable.ic_star_filled)
+            // } else {
+            //     favIcon.setImageResource(R.drawable.ic_star_outline)
+            // }
+            // favIcon.setOnClickListener {
+            //     onFavouriteClicked(group)
+            // }
+
+            itemView.setOnClickListener {
                 onGroupClicked(group)
             }
 
-            binding.groupOverflowMenu.setOnClickListener { view ->
-                val popup = PopupMenu(view.context, view)
-                popup.menuInflater.inflate(R.menu.group_card_menu, popup.menu)
+            // Options Menu (Edit/Delete)
+            optionsMenu.setOnClickListener {
+                val popup = PopupMenu(itemView.context, optionsMenu)
+                popup.menu.add("Edit")
+                popup.menu.add("Delete")
 
-                val favouriteMenuItem = popup.menu.findItem(R.id.action_add_to_favourite)
-                if (group.isFavourite) {
-                    favouriteMenuItem.title = "Remove from Favourites"
-                } else {
-                    favouriteMenuItem.title = "Add to Favourites"
-                }
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        R.id.action_add_to_favourite -> {
-                            onFavouriteClicked(group)
-                            true
-                        }
-                        R.id.action_edit_group -> {
-                            onEditClicked(group)
-                            true
-                        }
-                        R.id.action_delete_group -> {
-                            onDeleteClicked(group)
-                            true
-                        }
-                        else -> false
+                popup.setOnMenuItemClickListener { item ->
+                    when (item.title) {
+                        "Edit" -> onEditClicked(group)
+                        "Delete" -> onDeleteClicked(group)
                     }
+                    true
                 }
                 popup.show()
             }

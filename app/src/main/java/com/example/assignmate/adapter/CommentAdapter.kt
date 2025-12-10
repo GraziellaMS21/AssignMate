@@ -31,7 +31,10 @@ class CommentAdapter(private val comments: List<Comment>) : RecyclerView.Adapter
 
         fun bind(comment: Comment) {
             username.text = comment.username
-            text.text = comment.text
+
+            // --- FIX IS HERE: Changed 'comment.text' to 'comment.commentText' ---
+            // This matches the property name in your SQLite Comment model.
+            text.text = comment.commentText
 
             // Format timestamp to readable date
             val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())

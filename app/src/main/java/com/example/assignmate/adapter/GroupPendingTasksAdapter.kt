@@ -32,14 +32,17 @@ class GroupPendingTasksAdapter(
     class GroupPendingTasksViewHolder(private val binding: ItemGroupPendingTasksBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(group: Group) {
             binding.groupName.text = group.name
-            binding.pendingTaskCount.text = group.pendingTaskCount.toString()
 
-            val progressColor = when {
-                group.progress < 50 -> R.color.progress_low
-                group.progress < 100 -> R.color.progress_medium
-                else -> R.color.progress_high
-            }
-            binding.progressIndicator.setBackgroundColor(ContextCompat.getColor(binding.root.context, progressColor))
+            //TODO: Re-implement pending task count. The 'pendingTaskCount' property was removed from the Group model.
+            binding.pendingTaskCount.text = "N/A"
+
+            //TODO: Re-implement progress bar. The 'progress' property was removed from the Group model.
+            // val progressColor = when {
+            //     group.progress < 50 -> R.color.progress_low
+            //     group.progress < 100 -> R.color.progress_medium
+            //     else -> R.color.progress_high
+            // }
+            // binding.progressIndicator.setBackgroundColor(ContextCompat.getColor(binding.root.context, progressColor))
         }
     }
 }

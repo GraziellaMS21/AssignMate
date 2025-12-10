@@ -11,23 +11,28 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.adapter.MembersAdapter
 import com.example.assignmate.model.Member
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 
 class MembersFragment : Fragment() {
 
-    private lateinit var databaseHelper: DatabaseHelper
-    private var groupId: Long = -1
-    private var currentUserId: Int = -1
+    // Firebase References
+    private val db = FirebaseDatabase.getInstance().reference
+    private val auth = FirebaseAuth.getInstance()
+
+    private var groupId: String = ""
+    private var currentUserId: String = ""
 
     private lateinit var membersRecyclerView: RecyclerView
     private lateinit var memberAdapter: MembersAdapter
+    private val memberList = mutableListOf<Member>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            groupId = it.getLong(ARG_GROUP_ID)
-            currentUserId = it.getInt(ARG_CURRENT_USER_ID)
+            groupId = it.getString(ARG_GROUP_ID) ?: ""
+            currentUserId = it.getString(ARG_CURRENT_USER_ID) ?: ""
         }
-        databaseHelper = DatabaseHelper(requireContext())
     }
 
     override fun onCreateView(
@@ -38,16 +43,74 @@ class MembersFragment : Fragment() {
         membersRecyclerView = view.findViewById(R.id.members_recycler_view)
         membersRecyclerView.layoutManager = LinearLayoutManager(context)
 
+        // Initialize adapter
+        memberAdapter = MembersAdapter(memberList, "member") { member, action ->
+            handleMemberAction(member, action)
+        }
+        membersRecyclerView.adapter = memberAdapter
+
         loadMembers()
 
         return view
     }
 
-    fun loadMembers() {
-        val members = databaseHelper.getGroupMembers(groupId)
-        val currentUserRole = databaseHelper.getRoleForUserInGroup(currentUserId, groupId) ?: "member"
+    private fun loadMembers() {
+        db.child("Groups").child(groupId).child("members").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                memberList.clear()
+                val memberMap = mutableMapOf<String, String>() // Map<UserId, Role>
 
-        memberAdapter = MembersAdapter(members, currentUserRole) { member, action ->
+                for (child in snapshot.children) {
+                    val userId = child.key ?: continue
+                    val roleValue = child.value
+                    val role = if (roleValue is Boolean && roleValue) {
+                        "leader"
+                    } else {
+                        roleValue.toString()
+                    }
+                    memberMap[userId] = role
+                }
+
+                val myRole = memberMap[currentUserId] ?: "member"
+                updateAdapterRole(myRole)
+
+                if (memberMap.isEmpty()) {
+                    // FIX: Replaced 'updateMembers' with 'notifyDataSetChanged'
+                    memberAdapter.notifyDataSetChanged()
+                    return
+                }
+
+                var loadedCount = 0
+                val totalMembers = memberMap.size
+
+                for ((uid, role) in memberMap) {
+                    db.child("Users").child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(userSnap: DataSnapshot) {
+                            val username = userSnap.child("username").value.toString()
+
+                            // FIX: Member constructor now accepts String ID (uid) without error
+                            memberList.add(Member(uid, username, role))
+
+                            loadedCount++
+                            if (loadedCount == totalMembers) {
+                                memberList.sortWith(compareBy<Member> {
+                                    when(it.role) { "leader" -> 1; "co-leader" -> 2; else -> 3 }
+                                }.thenBy { it.name })
+
+                                // FIX: Replaced 'updateMembers' with 'notifyDataSetChanged'
+                                memberAdapter.notifyDataSetChanged()
+                            }
+                        }
+                        override fun onCancelled(error: DatabaseError) {}
+                    })
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    private fun updateAdapterRole(role: String) {
+        memberAdapter = MembersAdapter(memberList, role) { member, action ->
             handleMemberAction(member, action)
         }
         membersRecyclerView.adapter = memberAdapter
@@ -62,12 +125,14 @@ class MembersFragment : Fragment() {
     }
 
     private fun updateMemberRole(member: Member, role: String, message: String) {
-        if (databaseHelper.updateMemberRole(groupId, member.id, role)) {
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-            loadMembers()
-        } else {
-            Toast.makeText(requireContext(), "Failed to update role", Toast.LENGTH_SHORT).show()
-        }
+        // FIX: member.id is now String, so this child() call works correctly
+        db.child("Groups").child(groupId).child("members").child(member.id).setValue(role)
+            .addOnSuccessListener {
+                if (context != null) Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                if (context != null) Toast.makeText(requireContext(), "Failed to update role", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun showRemoveMemberConfirmationDialog(member: Member) {
@@ -75,15 +140,20 @@ class MembersFragment : Fragment() {
             .setTitle("Remove Member")
             .setMessage("Are you sure you want to remove ${member.name} from the group?")
             .setPositiveButton("Remove") { _, _ ->
-                if (databaseHelper.removeMemberFromGroup(groupId, member.id)) {
-                    Toast.makeText(requireContext(), "Member removed", Toast.LENGTH_SHORT).show()
-                    loadMembers()
-                } else {
-                    Toast.makeText(requireContext(), "Failed to remove member", Toast.LENGTH_SHORT).show()
-                }
+                removeMemberFromFirebase(member)
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun removeMemberFromFirebase(member: Member) {
+        // FIX: member.id is String, works correctly
+        db.child("Groups").child(groupId).child("members").child(member.id).removeValue()
+
+        db.child("Users").child(member.id).child("groups").child(groupId).removeValue()
+            .addOnSuccessListener {
+                if (context != null) Toast.makeText(requireContext(), "Member removed", Toast.LENGTH_SHORT).show()
+            }
     }
 
     companion object {
@@ -91,11 +161,11 @@ class MembersFragment : Fragment() {
         private const val ARG_CURRENT_USER_ID = "CURRENT_USER_ID"
 
         @JvmStatic
-        fun newInstance(groupId: Long, currentUserId: Int) =
+        fun newInstance(groupId: String, currentUserId: String) =
             MembersFragment().apply {
                 arguments = Bundle().apply {
-                    putLong(ARG_GROUP_ID, groupId)
-                    putInt(ARG_CURRENT_USER_ID, currentUserId)
+                    putString(ARG_GROUP_ID, groupId)
+                    putString(ARG_CURRENT_USER_ID, currentUserId)
                 }
             }
     }

@@ -11,7 +11,11 @@ import com.example.assignmate.model.Task
 private const val VIEW_TYPE_GROUP = 0
 private const val VIEW_TYPE_TASK = 1
 
-class GroupedTaskAdapter(private val tasksByGroup: Map<String, List<Task>>, private val currentUserId: Int) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+// FIX: Changed currentUserId to String (Firebase uses String UIDs)
+class GroupedTaskAdapter(
+    private val tasksByGroup: Map<String, List<Task>>,
+    private val currentUserId: String
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<Any>()
 
@@ -68,7 +72,8 @@ class GroupedTaskAdapter(private val tasksByGroup: Map<String, List<Task>>, priv
             itemView.setOnClickListener {
                 val context = itemView.context
                 val intent = Intent(context, TaskDetailActivity::class.java).apply {
-                    putExtra("TASK_ID", task.id)
+                    // FIX IS HERE: Changed task.id to task.taskId
+                    putExtra("TASK_ID", task.taskId)
                     putExtra("USER_ID", currentUserId)
                 }
                 context.startActivity(intent)

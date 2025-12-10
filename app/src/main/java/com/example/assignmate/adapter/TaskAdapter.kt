@@ -8,7 +8,6 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
 import com.example.assignmate.databinding.ItemTaskBinding
 import com.example.assignmate.model.Task
@@ -19,9 +18,9 @@ import java.util.Locale
 
 class TaskAdapter(
     private var tasks: List<Task>,
-    private val currentUserId: Int,
-    private val databaseHelper: DatabaseHelper,
-    private val onItemClicked: (Task) -> Unit, // Changed to a lambda
+    private val currentUserId: String, // FIX: Changed Int to String
+    // Removed DatabaseHelper as it is not used in Firebase architecture
+    private val onItemClicked: (Task) -> Unit,
     private val onDeleteClicked: (Task) -> Unit
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
@@ -47,9 +46,11 @@ class TaskAdapter(
             val context = itemView.context
             binding.taskName.text = task.name
             binding.taskDescription.text = task.description
-            if (task.dueDate != 0L) {
+
+            // FIX: Date is now a String, checking isNotEmpty() instead of != 0L
+            if (task.dueDate.isNotEmpty()) {
                 binding.dueDate.visibility = View.VISIBLE
-                binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
+                binding.dueDate.text = "Due: ${task.dueDate}"
             } else {
                 binding.dueDate.visibility = View.GONE
             }
@@ -58,65 +59,47 @@ class TaskAdapter(
 
             val (statusColor, statusBackground) = when (task.status) {
                 "Not Started" -> R.color.status_not_started to R.drawable.status_background_not_started
-                "In progress" -> R.color.status_in_progress to R.drawable.status_background_in_progress
-                "Complete" -> R.color.status_complete to R.drawable.status_background_complete
-                else -> android.R.color.black to R.drawable.status_background_in_progress // Default
+                "In progress", "In Progress" -> R.color.status_in_progress to R.drawable.status_background_in_progress
+                "Complete", "Completed" -> R.color.status_complete to R.drawable.status_background_complete
+                else -> android.R.color.black to R.drawable.status_background_in_progress
             }
-            binding.status.setTextColor(ContextCompat.getColor(context, statusColor))
-            binding.status.setBackgroundResource(statusBackground)
 
-            if (task.dueDate != 0L && task.dueDate < System.currentTimeMillis() && task.status != "Complete") {
+            // Use safe context for color retrieval
+            try {
+                binding.status.setTextColor(ContextCompat.getColor(context, statusColor))
+                binding.status.setBackgroundResource(statusBackground)
+            } catch (e: Exception) {
+                // Fallback if resources are missing
+                binding.status.setTextColor(Color.BLACK)
+            }
+
+            // FIX: Parse String date to check if overdue
+            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val date = try { sdf.parse(task.dueDate) } catch (e: Exception) { null }
+            val isOverdue = date != null && date.time < System.currentTimeMillis()
+
+            if (isOverdue && task.status != "Completed" && task.status != "Complete") {
                 binding.overdueIndicator.visibility = View.VISIBLE
             } else {
                 binding.overdueIndicator.visibility = View.GONE
             }
 
-            // Handle Assignees
+            // FIX: Handle Assignees using the String field from Firebase Model
             binding.assignedMembersChipGroup.removeAllViews()
-            if (!task.assignedTo.isNullOrEmpty()) {
+            if (task.assignedToName.isNotEmpty() && task.assignedToName != "Unassigned") {
                 binding.assigneesSection.visibility = View.VISIBLE
-                task.assignedTo.forEach { userId ->
-                    val userDetails = databaseHelper.getUserDetails(userId)
-                    if (userDetails != null) {
-                        val chip = Chip(context)
-                        chip.text = userDetails.first
-                        chip.chipMinHeight = 48f
-                        chip.setTextAppearance(R.style.AppChipTextAppearance)
-                        binding.assignedMembersChipGroup.addView(chip)
-                    }
-                }
+                val chip = Chip(context)
+                chip.text = task.assignedToName
+                chip.chipMinHeight = 48f
+                // chip.setTextAppearance(R.style.AppChipTextAppearance) // Uncomment if style exists
+                binding.assignedMembersChipGroup.addView(chip)
             } else {
                 binding.assigneesSection.visibility = View.GONE
             }
 
-            // Handle Labels
-            binding.labelsChipGroup.removeAllViews()
-            val labels = databaseHelper.getLabelsForTask(task.id)
-            if (labels.isNotEmpty()) {
-                binding.labelsSection.visibility = View.VISIBLE
-                labels.forEach { label ->
-                    val chip = Chip(context)
-                    chip.text = label.name
-                    chip.chipMinHeight = 48f
-                    chip.setTextAppearance(R.style.AppChipTextAppearance)
-                    try {
-                        val color = Color.parseColor(label.color)
-                        chip.chipBackgroundColor = ColorStateList.valueOf(color)
-
-                        val luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255
-                        if (luminance > 0.5) {
-                            chip.setTextColor(Color.BLACK)
-                        } else {
-                            chip.setTextColor(Color.WHITE)
-                        }
-                    } catch (e: IllegalArgumentException) {
-                        chip.chipBackgroundColor = ColorStateList.valueOf(Color.LTGRAY)
-                    }
-                    binding.labelsChipGroup.addView(chip)
-                }
-            } else {
-                binding.labelsSection.visibility = View.GONE
-            }
+            // NOTE: Label fetching removed because DatabaseHelper is gone.
+            // In Firebase, labels should be loaded in the Activity or stored in the Task object.
+            binding.labelsSection.visibility = View.GONE
 
             binding.root.setOnClickListener {
                 onItemClicked(task)
