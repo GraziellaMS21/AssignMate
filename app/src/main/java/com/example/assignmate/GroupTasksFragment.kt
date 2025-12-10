@@ -1,13 +1,18 @@
 package com.example.assignmate
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.adapter.TaskAdapter
 import com.example.assignmate.model.Task
 
 class GroupTasksFragment : Fragment() {
@@ -17,6 +22,12 @@ class GroupTasksFragment : Fragment() {
 
     private lateinit var tasksRecyclerView: RecyclerView
     private lateinit var taskAdapter: TaskAdapter
+
+    private val taskDetailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            refreshTasks()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,15 +52,50 @@ class GroupTasksFragment : Fragment() {
 
     private fun loadTasks() {
         val tasks = databaseHelper.getTasksForGroup(groupId)
-        taskAdapter = TaskAdapter(tasks) { task ->
-            val intent = Intent(activity, TaskDetailActivity::class.java)
-            intent.putExtra("TASK_ID", task.id)
-            // We need to pass the current user's ID as well, which we get from the activity
-            val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
-            intent.putExtra("USER_ID", currentUserId)
-            startActivity(intent)
-        }
+        val currentUserId = (activity as? SingleGroupActivity)?.intent?.getIntExtra("USER_ID", -1) ?: -1
+        taskAdapter = TaskAdapter(tasks, currentUserId, databaseHelper,
+            onItemClicked = {
+                val intent = Intent(requireContext(), TaskDetailActivity::class.java).apply {
+                    putExtra("TASK_ID", it.id)
+                    putExtra("USER_ID", currentUserId)
+                }
+                taskDetailLauncher.launch(intent)
+            },
+            onDeleteClicked = { task ->
+            showDeleteConfirmationDialog(task)
+        })
         tasksRecyclerView.adapter = taskAdapter
+    }
+
+    fun filterTasks(filterType: String, query: String) {
+        val tasks = when (filterType) {
+            "All" -> databaseHelper.getTasksForGroup(groupId, query)
+            "By Assignee" -> databaseHelper.getTasksForGroupFilteredByAssignee(groupId, query)
+            "By Label" -> databaseHelper.getTasksForGroupFilteredByLabel(groupId, query)
+            else -> databaseHelper.getTasksForGroup(groupId)
+        }
+        taskAdapter.updateTasks(tasks)
+    }
+
+    fun refreshTasks() {
+        val tasks = databaseHelper.getTasksForGroup(groupId)
+        taskAdapter.updateTasks(tasks)
+    }
+
+    private fun showDeleteConfirmationDialog(task: Task) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Task")
+            .setMessage("Are you sure you want to delete this task?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (databaseHelper.deleteTask(task.id)) {
+                    Toast.makeText(requireContext(), "Task deleted", Toast.LENGTH_SHORT).show()
+                    refreshTasks()
+                } else {
+                    Toast.makeText(requireContext(), "Failed to delete task", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     companion object {

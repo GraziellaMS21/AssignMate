@@ -1,62 +1,140 @@
 package com.example.assignmate.adapter
 
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import android.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.example.assignmate.DatabaseHelper
 import com.example.assignmate.R
+import com.example.assignmate.databinding.ItemTaskBinding
 import com.example.assignmate.model.Task
+import com.google.android.material.chip.Chip
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-class TaskAdapter(private val tasks: List<Task>, private val onTaskClick: (Task) -> Unit) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
+class TaskAdapter(
+    private var tasks: List<Task>,
+    private val currentUserId: Int,
+    private val databaseHelper: DatabaseHelper,
+    private val onItemClicked: (Task) -> Unit, // Changed to a lambda
+    private val onDeleteClicked: (Task) -> Unit
+) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_task, parent, false)
-        return TaskViewHolder(view)
+        val binding = ItemTaskBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return TaskViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
         val task = tasks[position]
         holder.bind(task)
-        holder.itemView.setOnClickListener { onTaskClick(task) }
     }
 
     override fun getItemCount() = tasks.size
 
-    class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val taskName: TextView = itemView.findViewById(R.id.task_name)
-        private val taskDescription: TextView = itemView.findViewById(R.id.task_description)
-        private val dueDate: TextView = itemView.findViewById(R.id.due_date)
-        private val status: TextView = itemView.findViewById(R.id.status)
+    fun updateTasks(newTasks: List<Task>){
+        tasks = newTasks
+        notifyDataSetChanged()
+    }
 
+    inner class TaskViewHolder(private val binding: ItemTaskBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(task: Task) {
-            taskName.text = task.name
-
-            if (task.description.isNotEmpty()) {
-                taskDescription.text = task.description
-                taskDescription.visibility = View.VISIBLE
+            val context = itemView.context
+            binding.taskName.text = task.name
+            binding.taskDescription.text = task.description
+            if (task.dueDate != 0L) {
+                binding.dueDate.visibility = View.VISIBLE
+                binding.dueDate.text = "Due: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(task.dueDate))}"
             } else {
-                taskDescription.visibility = View.GONE
+                binding.dueDate.visibility = View.GONE
             }
 
-            if (task.dueDate > 0) {
-                val date = Date(task.dueDate)
-                val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                dueDate.text = "Due: ${format.format(date)}"
-                dueDate.visibility = View.VISIBLE
+            binding.status.text = task.status
+
+            val (statusColor, statusBackground) = when (task.status) {
+                "Not Started" -> R.color.status_not_started to R.drawable.status_background_not_started
+                "In progress" -> R.color.status_in_progress to R.drawable.status_background_in_progress
+                "Complete" -> R.color.status_complete to R.drawable.status_background_complete
+                else -> android.R.color.black to R.drawable.status_background_in_progress // Default
+            }
+            binding.status.setTextColor(ContextCompat.getColor(context, statusColor))
+            binding.status.setBackgroundResource(statusBackground)
+
+            if (task.dueDate != 0L && task.dueDate < System.currentTimeMillis() && task.status != "Complete") {
+                binding.overdueIndicator.visibility = View.VISIBLE
             } else {
-                dueDate.visibility = View.GONE
+                binding.overdueIndicator.visibility = View.GONE
             }
 
-            if (task.status == "Complete") {
-                status.text = "Completed"
-                status.setTextColor(Color.GREEN)
+            // Handle Assignees
+            binding.assignedMembersChipGroup.removeAllViews()
+            if (!task.assignedTo.isNullOrEmpty()) {
+                binding.assigneesSection.visibility = View.VISIBLE
+                task.assignedTo.forEach { userId ->
+                    val userDetails = databaseHelper.getUserDetails(userId)
+                    if (userDetails != null) {
+                        val chip = Chip(context)
+                        chip.text = userDetails.first
+                        chip.chipMinHeight = 48f
+                        chip.setTextAppearance(R.style.AppChipTextAppearance)
+                        binding.assignedMembersChipGroup.addView(chip)
+                    }
+                }
             } else {
-                status.text = "Pending"
-                status.setTextColor(Color.RED)
+                binding.assigneesSection.visibility = View.GONE
+            }
+
+            // Handle Labels
+            binding.labelsChipGroup.removeAllViews()
+            val labels = databaseHelper.getLabelsForTask(task.id)
+            if (labels.isNotEmpty()) {
+                binding.labelsSection.visibility = View.VISIBLE
+                labels.forEach { label ->
+                    val chip = Chip(context)
+                    chip.text = label.name
+                    chip.chipMinHeight = 48f
+                    chip.setTextAppearance(R.style.AppChipTextAppearance)
+                    try {
+                        val color = Color.parseColor(label.color)
+                        chip.chipBackgroundColor = ColorStateList.valueOf(color)
+
+                        val luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255
+                        if (luminance > 0.5) {
+                            chip.setTextColor(Color.BLACK)
+                        } else {
+                            chip.setTextColor(Color.WHITE)
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        chip.chipBackgroundColor = ColorStateList.valueOf(Color.LTGRAY)
+                    }
+                    binding.labelsChipGroup.addView(chip)
+                }
+            } else {
+                binding.labelsSection.visibility = View.GONE
+            }
+
+            binding.root.setOnClickListener {
+                onItemClicked(task)
+            }
+
+            binding.taskOverflowMenu.setOnClickListener { view ->
+                val popup = PopupMenu(view.context, view)
+                popup.menuInflater.inflate(R.menu.group_task_menu, popup.menu)
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.action_delete_task -> {
+                            onDeleteClicked(task)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
             }
         }
     }

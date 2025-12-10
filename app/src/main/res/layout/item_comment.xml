@@ -9,22 +9,17 @@
         android:id="@+id/comment_username"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="Username" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/comment_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="This is the comment text." />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 
     <TextView
         android:id="@+id/comment_timestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textSize="12sp"
-        android:text="timestamp" />
+        android:textSize="12sp" />
 
 </LinearLayout>

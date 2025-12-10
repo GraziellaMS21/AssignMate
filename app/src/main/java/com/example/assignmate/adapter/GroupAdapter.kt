@@ -1,56 +1,98 @@
 package com.example.assignmate.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
+import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
 import com.example.assignmate.R
+import com.example.assignmate.databinding.ItemGroupCardBinding
 import com.example.assignmate.model.Group
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 class GroupAdapter(
-    private val groups: List<Group>,
-    private val onItemClicked: (Group) -> Unit
+    private var groups: MutableList<Group>,
+    private val currentUserId: Int,
+    private val onGroupClicked: (Group) -> Unit,
+    private val onEditClicked: (Group) -> Unit,
+    private val onDeleteClicked: (Group) -> Unit,
+    private val onFavouriteClicked: (Group) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
 
+    private var allGroups: List<Group> = ArrayList(groups)
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_group_card, parent, false)
-        return GroupViewHolder(view)
+        val binding = ItemGroupCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return GroupViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
         val group = groups[position]
         holder.bind(group)
-        holder.itemView.setOnClickListener {
-            onItemClicked(group)
-        }
     }
 
     override fun getItemCount() = groups.size
 
-    class GroupViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val groupIcon: ImageView = itemView.findViewById(R.id.group_icon)
-        private val groupName: TextView = itemView.findViewById(R.id.group_name)
-        private val groupLeader: TextView = itemView.findViewById(R.id.group_leader)
-        private val groupMembers: TextView = itemView.findViewById(R.id.group_members)
-        private val assignedTasks: TextView = itemView.findViewById(R.id.assigned_tasks)
-        private val groupDescription: TextView = itemView.findViewById(R.id.group_description)
-        private val lastUpdated: TextView = itemView.findViewById(R.id.last_updated)
-        private val groupProgress: ProgressBar = itemView.findViewById(R.id.group_progress)
+    fun setGroups(groups: List<Group>){
+        this.allGroups = ArrayList(groups)
+        filter("") // Initially show all groups
+    }
 
+    fun filter(query: String) {
+        val filteredList = allGroups.filter { group ->
+            group.name.contains(query, ignoreCase = true) ||
+                    group.description.contains(query, ignoreCase = true)
+        }
+        groups.clear()
+        groups.addAll(filteredList)
+        notifyDataSetChanged()
+    }
+
+    inner class GroupViewHolder(private val binding: ItemGroupCardBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(group: Group) {
-            groupName.text = group.name
-            groupLeader.text = "Group Leader: ${group.leader}"
-            groupMembers.text = "Members: ${group.members.size}"
-            // TODO: Implement assigned tasks count
-            assignedTasks.text = "Assigned Tasks: 0"
-            groupDescription.text = group.description
-            lastUpdated.text = "Last updated: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(group.lastUpdated))}"
-            groupProgress.progress = group.progress
+            binding.groupName.text = group.name
+            binding.groupLeader.text = "Group Leader: ${group.leader}"
+            binding.groupMembers.text = "Members: ${group.members.size}"
+            binding.assignedTasks.text = "Assigned Tasks: ${group.assignedTasksCount}"
+            binding.groupDescription.text = group.description
+            binding.lastUpdated.text = "Last updated: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(group.lastUpdated))}"
+            binding.groupProgress.progress = group.progress
+
+            binding.root.setOnClickListener {
+                onGroupClicked(group)
+            }
+
+            binding.groupOverflowMenu.setOnClickListener { view ->
+                val popup = PopupMenu(view.context, view)
+                popup.menuInflater.inflate(R.menu.group_card_menu, popup.menu)
+
+                val favouriteMenuItem = popup.menu.findItem(R.id.action_add_to_favourite)
+                if (group.isFavourite) {
+                    favouriteMenuItem.title = "Remove from Favourites"
+                } else {
+                    favouriteMenuItem.title = "Add to Favourites"
+                }
+
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.action_add_to_favourite -> {
+                            onFavouriteClicked(group)
+                            true
+                        }
+                        R.id.action_edit_group -> {
+                            onEditClicked(group)
+                            true
+                        }
+                        R.id.action_delete_group -> {
+                            onDeleteClicked(group)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
+            }
         }
     }
 }
