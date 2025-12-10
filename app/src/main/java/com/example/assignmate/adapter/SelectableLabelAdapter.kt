@@ -1,60 +1,45 @@
 package com.example.assignmate.adapter
 
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import androidx.recyclerview.widget.RecyclerView
-import com.example.assignmate.databinding.ItemLabelSelectableBinding
+import com.example.assignmate.R
 import com.example.assignmate.model.Label
 
 class SelectableLabelAdapter(
     private val allLabels: List<Label>,
-    private val assignedLabels: MutableSet<Long>
-) : RecyclerView.Adapter<SelectableLabelAdapter.LabelViewHolder>() {
+    private val selectedLabelIds: MutableSet<Long>
+) : RecyclerView.Adapter<SelectableLabelAdapter.SelectableLabelViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LabelViewHolder {
-        val binding = ItemLabelSelectableBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return LabelViewHolder(binding)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectableLabelViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_selectable_label, parent, false)
+        return SelectableLabelViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: LabelViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: SelectableLabelViewHolder, position: Int) {
         val label = allLabels[position]
         holder.bind(label)
     }
 
     override fun getItemCount() = allLabels.size
 
-    fun getSelectedLabelIds(): Set<Long> = assignedLabels
+    fun getSelectedLabelIds(): Set<Long> = selectedLabelIds
 
-    inner class LabelViewHolder(private val binding: ItemLabelSelectableBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class SelectableLabelViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val labelCheckbox: CheckBox = itemView.findViewById(R.id.label_checkbox)
+
         fun bind(label: Label) {
-            binding.labelNameView.text = label.name
+            labelCheckbox.text = label.name
+            labelCheckbox.isChecked = selectedLabelIds.contains(label.id)
 
-            val color = try {
-                Color.parseColor(label.color)
-            } catch (e: IllegalArgumentException) {
-                Color.GRAY
-            }
-
-            val background = binding.labelColorView.background.mutate()
-            if (background is GradientDrawable) {
-                background.setColor(color)
-            }
-
-            binding.labelCheckbox.setOnCheckedChangeListener(null)
-            binding.labelCheckbox.isChecked = assignedLabels.contains(label.id)
-
-            binding.labelCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            labelCheckbox.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
-                    assignedLabels.add(label.id)
+                    selectedLabelIds.add(label.id)
                 } else {
-                    assignedLabels.remove(label.id)
+                    selectedLabelIds.remove(label.id)
                 }
-            }
-
-            itemView.setOnClickListener {
-                binding.labelCheckbox.toggle()
             }
         }
     }

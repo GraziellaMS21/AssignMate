@@ -4,9 +4,12 @@ import android.app.DatePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -21,13 +24,18 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.assignmate.adapter.ManageLabelsAdapter
+import com.example.assignmate.adapter.NewSubtaskAdapter
+import com.example.assignmate.adapter.SelectableLabelAdapter
 import com.example.assignmate.databinding.ActivitySingleGroupBinding
 import com.example.assignmate.model.Label
+import com.example.assignmate.model.NewSubtask
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.tabs.TabLayoutMediator
 import yuku.ambilwarna.AmbilWarnaDialog
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 class SingleGroupActivity : AppCompatActivity() {
 
@@ -116,7 +124,7 @@ class SingleGroupActivity : AppCompatActivity() {
         } else {
             favouriteMenuItem?.title = "Add to Favourites"
         }
-        
+
         val canManageGroup = currentUserRole == "leader" || currentUserRole == "co-leader"
         menu?.findItem(R.id.action_edit_group)?.isVisible = canManageGroup
         menu?.findItem(R.id.action_delete_group)?.isVisible = canManageGroup
@@ -235,7 +243,11 @@ class SingleGroupActivity : AppCompatActivity() {
 
         if (label != null) {
             labelNameInput.setText(label.name)
-            defaultColor = android.graphics.Color.parseColor(label.color)
+            defaultColor = Color.parseColor(label.color)
+            colorPicker?.setBackgroundColor(defaultColor)
+        } else {
+            // Set a default color for new labels to orange
+            defaultColor = Color.parseColor("#F28A30")
             colorPicker?.setBackgroundColor(defaultColor)
         }
 
@@ -321,90 +333,181 @@ class SingleGroupActivity : AppCompatActivity() {
     }
 
     private fun showCreateTaskDialog() {
+        Log.d("CreateTaskDialog", "showCreateTaskDialog called")
         val builder = AlertDialog.Builder(this)
         val view = layoutInflater.inflate(R.layout.dialog_create_task, null)
         builder.setView(view)
 
+        // View references
         val taskNameInput = view.findViewById<EditText>(R.id.task_name_input)
         val taskDescriptionInput = view.findViewById<EditText>(R.id.task_description_input)
         val dueDateInput = view.findViewById<EditText>(R.id.due_date_input)
+        val assignToLayout = view.findViewById<View>(R.id.assign_to_layout)
         val assignedMembersChipGroup = view.findViewById<ChipGroup>(R.id.assigned_members_chip_group)
-        val editAssignmentsButton = view.findViewById<View>(R.id.edit_assignments_button)
+        val addLabelLayout = view.findViewById<View>(R.id.add_label_layout)
+        val labelsChipGroup = view.findViewById<ChipGroup>(R.id.labels_chip_group)
+        val subtasksRecyclerView = view.findViewById<RecyclerView>(R.id.subtasks_recycler_view)
+        val addSubtaskButton = view.findViewById<View>(R.id.add_subtask_button)
 
-        val members = databaseHelper.getGroupMembers(groupId)
-        val memberNames = members.map { it.name }.toTypedArray()
-        val selectedMembers = BooleanArray(memberNames.size)
+        // Data holders
+        var dueDateMillis: Long = 0
         val assignedTo = mutableListOf<Int>()
+        val selectedLabelIds = mutableSetOf<Long>()
+        val subtasks = mutableListOf<NewSubtask>()
 
+        // Setup Subtasks
+        val subtaskAdapter = NewSubtaskAdapter(subtasks)
+        subtasksRecyclerView.layoutManager = LinearLayoutManager(this)
+        subtasksRecyclerView.adapter = subtaskAdapter
+
+        // Setup Listeners
         dueDateInput.setOnClickListener {
             val calendar = Calendar.getInstance()
+            if (dueDateMillis != 0L) {
+                calendar.timeInMillis = dueDateMillis
+            }
             val year = calendar.get(Calendar.YEAR)
             val month = calendar.get(Calendar.MONTH)
             val day = calendar.get(Calendar.DAY_OF_MONTH)
 
-            val datePickerDialog = DatePickerDialog(this, {
-                _, selectedYear, selectedMonth, selectedDay ->
-                dueDateInput.setText("$selectedDay/${selectedMonth + 1}/$selectedYear")
+            val datePickerDialog = DatePickerDialog(this, { _, selectedYear, selectedMonth, selectedDay ->
+                val newDueDateCalendar = Calendar.getInstance()
+                newDueDateCalendar.set(selectedYear, selectedMonth, selectedDay)
+                dueDateMillis = newDueDateCalendar.timeInMillis
+                dueDateInput.setText(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(dueDateMillis))
             }, year, month, day)
+
+            datePickerDialog.setButton(DatePickerDialog.BUTTON_NEUTRAL, "Clear") { _, _ ->
+                dueDateMillis = 0L
+                dueDateInput.setText("")
+            }
             datePickerDialog.show()
         }
 
-        editAssignmentsButton.setOnClickListener {
+        assignToLayout.setOnClickListener {
+            val members = databaseHelper.getGroupMembers(groupId)
+            val memberNames = members.map { it.name }.toTypedArray()
+            val selectedItems = BooleanArray(memberNames.size) { i -> members[i].id in assignedTo }
+
             AlertDialog.Builder(this)
                 .setTitle("Assign Members")
-                .setMultiChoiceItems(memberNames, selectedMembers) { _, which, isChecked ->
-                    selectedMembers[which] = isChecked
+                .setMultiChoiceItems(memberNames, selectedItems) { _, which, isChecked ->
+                    val memberId = members[which].id
+                    if (isChecked) {
+                        if (memberId !in assignedTo) assignedTo.add(memberId)
+                    } else {
+                        assignedTo.remove(memberId)
+                    }
                 }
                 .setPositiveButton("OK") { _, _ ->
-                    assignedTo.clear()
                     assignedMembersChipGroup.removeAllViews()
-                    for (i in selectedMembers.indices) {
-                        if (selectedMembers[i]) {
-                            assignedTo.add(members[i].id)
-                            val chip = Chip(this)
-                            chip.text = members[i].name
-                            assignedMembersChipGroup.addView(chip)
-                        }
+                    val assignedMembers = members.filter { it.id in assignedTo }
+                    for (member in assignedMembers) {
+                        val chip = Chip(this)
+                        chip.text = member.name
+                        assignedMembersChipGroup.addView(chip)
                     }
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
 
-        builder.setPositiveButton("Create") { dialog, _ ->
-            val taskName = taskNameInput.text.toString()
-            val taskDescription = taskDescriptionInput.text.toString()
-            val dueDate = dueDateInput.text.toString()
+        addLabelLayout.setOnClickListener {
+            val allLabels = databaseHelper.getAllLabels()
+            val dialogView = layoutInflater.inflate(R.layout.dialog_select_labels, null)
+            val labelsRecyclerViewDialog = dialogView.findViewById<RecyclerView>(R.id.labels_recycler_view)
+            labelsRecyclerViewDialog.layoutManager = LinearLayoutManager(this)
 
-            if (taskName.isNotEmpty()) {
-                val calendar = Calendar.getInstance()
-                if (dueDate.isNotEmpty()) {
-                    val dateParts = dueDate.split("/")
-                    calendar.set(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
-                }
-                val dueDateMillis = if (dueDate.isNotEmpty()) calendar.timeInMillis else 0L
+            // Create a copy of the selected IDs to handle cancellations correctly
+            val tempSelectedLabelIds = selectedLabelIds.toMutableSet()
+            val adapter = SelectableLabelAdapter(allLabels, tempSelectedLabelIds)
+            labelsRecyclerViewDialog.adapter = adapter
 
-                val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, dueDateMillis)
-                if (newTaskId != -1L) {
-                    notificationHelper.sendNotification(currentUserId, "New Task", "A new task has been created: $taskName", newTaskId.toInt())
-                    assignedTo.forEach { 
-                        databaseHelper.assignTaskToUser(newTaskId, it)
-                        notificationHelper.sendNotification(it, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
+            AlertDialog.Builder(this)
+                .setTitle("Select Labels")
+                .setView(dialogView)
+                .setPositiveButton("Save") { _, _ ->
+                    // Update the actual selected IDs set
+                    selectedLabelIds.clear()
+                    selectedLabelIds.addAll(tempSelectedLabelIds)
+
+                    // Update the UI to show the selected labels as chips
+                    labelsChipGroup.removeAllViews()
+                    val selectedLabels = allLabels.filter { it.id in selectedLabelIds }
+                    for (label in selectedLabels) {
+                        val chip = Chip(this)
+                        chip.text = label.name
+                        try {
+                            val color = Color.parseColor(label.color)
+                            chip.chipBackgroundColor = ColorStateList.valueOf(color)
+                        } catch (e: IllegalArgumentException) {
+                            Log.w("CreateTaskDialog", "Invalid color for label: ${label.name}")
+                        }
+                        labelsChipGroup.addView(chip)
                     }
-                    Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
-                    val tasksFragment = supportFragmentManager.findFragmentByTag("f0") as? GroupTasksFragment
-                    tasksFragment?.refreshTasks()
-                } else {
-                    Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
                 }
-            } else {
-                Toast.makeText(this, "Please enter a task name", Toast.LENGTH_SHORT).show()
-            }
-            dialog.dismiss()
+                .setNegativeButton("Cancel", null) // On cancel, changes to tempSelectedLabelIds are discarded
+                .show()
         }
-        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
 
-        builder.show()
+        addSubtaskButton.setOnClickListener {
+            val subtaskBuilder = AlertDialog.Builder(this)
+            val subtaskView = layoutInflater.inflate(R.layout.dialog_add_subtask, null)
+            subtaskBuilder.setView(subtaskView)
+            val subtaskNameInput = subtaskView.findViewById<EditText>(R.id.subtask_name_input)
+
+            subtaskBuilder.setPositiveButton("Add") { _, _ ->
+                val subtaskName = subtaskNameInput.text.toString()
+                if (subtaskName.isNotEmpty()) {
+                    val newSubtask = NewSubtask(name = subtaskName)
+                    subtaskAdapter.addSubtask(newSubtask)
+                }
+            }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        builder.setPositiveButton("Create") { _, _ ->
+            val taskName = taskNameInput.text.toString()
+            if (taskName.isEmpty()) {
+                Toast.makeText(this, "Task title cannot be empty", Toast.LENGTH_SHORT).show()
+                return@setPositiveButton
+            }
+
+            val taskDescription = taskDescriptionInput.text.toString()
+            val finalDueDate = if (dueDateMillis == 0L) null else dueDateMillis
+
+            val newTaskId = databaseHelper.createTask(taskName, taskDescription, groupId, finalDueDate)
+
+            if (newTaskId != -1L) {
+                // Assign members
+                assignedTo.forEach { memberId ->
+                    databaseHelper.assignTaskToUser(newTaskId, memberId)
+                    notificationHelper.sendNotification(memberId, "Task Assigned", "You have been assigned a new task: $taskName", newTaskId.toInt())
+                }
+
+                // Add labels
+                if (selectedLabelIds.isNotEmpty()) {
+                    databaseHelper.updateTaskLabels(newTaskId, selectedLabelIds)
+                }
+
+                // Add subtasks
+                subtasks.forEach { subtask ->
+                    databaseHelper.createSubtask(newTaskId, subtask.name)
+                }
+
+                Toast.makeText(this, "Task created successfully", Toast.LENGTH_SHORT).show()
+                val tasksFragment = supportFragmentManager.findFragmentByTag("f0") as? GroupTasksFragment
+                tasksFragment?.refreshTasks()
+
+            } else {
+                Toast.makeText(this, "Failed to create task", Toast.LENGTH_SHORT).show()
+            }
+        }
+            .setNegativeButton("Cancel", null)
+
+        builder.create().show()
+        Log.d("CreateTaskDialog", "Dialog shown")
     }
 
     inner class ViewPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {

@@ -970,14 +970,32 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     fun deleteTask(taskId: Long): Boolean {
         val db = this.writableDatabase
         val groupId = getTask(taskId)?.groupId
-        val selection = "$KEY_TASK_ID = ?"
-        val selectionArgs = arrayOf(taskId.toString())
-        val count = db.delete(TABLE_TASKS, selection, selectionArgs)
+
+        // Use a transaction to ensure both deletions succeed or fail together
+        db.beginTransaction()
+        var count = 0
+        try {
+            // First, delete the assignments for the task
+            val assignmentSelection = "$KEY_ASSIGNMENT_TASK_ID = ?"
+            val assignmentSelectionArgs = arrayOf(taskId.toString())
+            db.delete(TABLE_TASK_ASSIGNMENTS, assignmentSelection, assignmentSelectionArgs)
+
+            // Then, delete the task itself
+            val taskSelection = "$KEY_TASK_ID = ?"
+            val taskSelectionArgs = arrayOf(taskId.toString())
+            count = db.delete(TABLE_TASKS, taskSelection, taskSelectionArgs)
+
+            db.setTransactionSuccessful() // Mark the transaction as successful
+        } finally {
+            db.endTransaction() // End the transaction
+        }
+
         if (count > 0) {
             if(groupId != null) updateLastUpdated(groupId)
         }
         return count > 0
     }
+
 
     private fun getGroupProgress(groupId: Long): Int {
         val tasks = getTasksForGroup(groupId)
@@ -988,9 +1006,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     fun getTotalTasksForUser(userId: Int): Int {
         val db = this.readableDatabase
-        val query = "SELECT COUNT(*) FROM $TABLE_TASKS t " +
-                "INNER JOIN $TABLE_USER_GROUPS ug ON t.$KEY_TASK_GROUP_ID = ug.$KEY_GROUP_ID " +
-                "WHERE ug.$KEY_USER_ID = ?"
+        // MODIFIED QUERY: Joins with task_assignments to count only tasks assigned to the user.
+        val query = "SELECT COUNT(*) FROM $TABLE_TASK_ASSIGNMENTS WHERE $KEY_ASSIGNMENT_USER_ID = ?"
         val cursor = db.rawQuery(query, arrayOf(userId.toString()))
         var count = 0
         if (cursor.moveToFirst()) {
@@ -1000,12 +1017,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return count
     }
 
+
     fun getPendingTasksForUser(userId: Int): Int {
         val db = this.readableDatabase
-        val query = "SELECT COUNT(*) FROM $TABLE_TASKS t " +
-                "INNER JOIN $TABLE_USER_GROUPS ug ON t.$KEY_TASK_GROUP_ID = ug.$KEY_GROUP_ID " +
-                "WHERE ug.$KEY_USER_ID = ? AND t.$KEY_STATUS != 'Complete'"
+        // This simplified query correctly finds all non-complete tasks assigned to the user.
+        val query = "SELECT COUNT(t.$KEY_TASK_ID) FROM $TABLE_TASKS t " +
+                "JOIN $TABLE_TASK_ASSIGNMENTS ta ON t.$KEY_TASK_ID = ta.$KEY_ASSIGNMENT_TASK_ID " +
+                "WHERE ta.$KEY_ASSIGNMENT_USER_ID = ? AND t.$KEY_STATUS != 'Complete'"
+
+        // We only need to provide the userId once for the single '?' placeholder.
         val cursor = db.rawQuery(query, arrayOf(userId.toString()))
+
         var count = 0
         if (cursor.moveToFirst()) {
             count = cursor.getInt(0)
@@ -1013,6 +1035,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         return count
     }
+
 
     fun getPendingTaskCountForGroup(groupId: Long): Int {
         val db = this.readableDatabase
